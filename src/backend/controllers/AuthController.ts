@@ -1,4 +1,5 @@
 // src/backend/controllers/AuthController.ts
+import crypto from 'crypto';
 import { Request, Response } from 'express';
 import { 
   RegisterRequestSchema, 
