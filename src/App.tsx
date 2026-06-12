@@ -90,7 +90,8 @@ import ExecutiveExecutionReport from './components/ExecutiveExecutionReport';
 import RevenueMilestones from './components/RevenueMilestones';
 import SaaSMaturityPipeline from './components/SaaSMaturityPipeline';
 import RepositoryAuditReport from './components/RepositoryAuditReport';
-import { Beaker, ShieldAlert, Briefcase, Store, FileText, Target, CheckSquare, ListOrdered, FileCode2, TerminalSquare, FileCheck2, Cloud, ServerCog, Rocket, PlayCircle, Trophy, PhoneCall, Focus, Waypoints, Magnet, Brain, GitMerge, Compass, CalendarDays, Zap, Crown, Search, Activity, Cpu, FileWarning, Chrome, RefreshCw, CalendarSync, Filter, Terminal, Users, LineChart, Milestone } from 'lucide-react';
+import { Beaker, ShieldAlert, Briefcase, Store, FileText, Target, CheckSquare, ListOrdered, FileCode2, TerminalSquare, FileCheck2, Cloud, ServerCog, Rocket, PlayCircle, Trophy, PhoneCall, Focus, Waypoints, Magnet, Brain, GitMerge, CalendarDays, Zap, Crown, Search, FileWarning, Chrome, RefreshCw, CalendarSync, Filter, Terminal, LineChart, Milestone } from 'lucide-react';
+import NextActionEngine from './components/NextActionEngine';
 
 export default function App() {
   // Navigation Routing States
