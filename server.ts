@@ -22,7 +22,7 @@ import adminConsoleRoutesV2 from "./src/backend/routes/adminConsoleRoutes";
 import metricsRoutes, { metricsMiddleware } from "./src/backend/routes/metricsRoutes";
 import { executeAllServiceTests } from "./src/backend/tests/run-tests";
 
-dotenv.config();
+dotenv.config({ path: [".env.local", ".env"] });
 
 const app = express();
 const PORT = 3000;
