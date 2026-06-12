@@ -1,0 +1,29 @@
+groups:
+  - name: API_Alerts
+    rules:
+      - alert: HighApiLatency
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 2
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API Latency on {{ $labels.route }}"
+          description: "95th percentile of request latency is above 2 seconds for 2 minutes."
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{code=~"5.."}[5m]) > 0.05
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High API Error Rate"
+          description: "More than 5% of requests are returning 5xx status codes."
+
+      - alert: InstanceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance {{ $labels.instance }} down"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 1 minute."

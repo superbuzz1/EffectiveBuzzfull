@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EffectiveBuzz - AI Outbound SaaS Platform</title>
+    <script>
+      // Sandboxed environments like preview iFrames might set window.fetch as a read-only getter.
+      // This bulletproof polyfill safe-guards against assignment crashes by providing a dynamic write/read setter.
+      (function() {
+        try {
+          var originalFetch = window.fetch || globalThis.fetch;
+          var customFetch = null;
+          Object.defineProperty(window, 'fetch', {
+            get: function() {
+              return customFetch || originalFetch;
+            },
+            set: function(val) {
+              customFetch = val;
+            },
+            configurable: true,
+            enumerable: true
+          });
+        } catch (e) {
+          console.warn("[EffectiveBuzz Sandbox Guard] Failed to override fetch descriptor configuration:", e);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

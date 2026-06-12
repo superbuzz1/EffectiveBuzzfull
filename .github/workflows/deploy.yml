@@ -1,0 +1,34 @@
+name: Deploy to Production (Coolify)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+        
+      - name: Test
+        run: npx tsx src/backend/tests/run-tests.ts
+
+      - name: Trigger Coolify Webhook
+        if: success()
+        run: |
+          curl --request POST '${{ secrets.COOLIFY_WEBHOOK_URL }}' \
+               --header 'Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}'

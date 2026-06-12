@@ -1,0 +1,185 @@
+// prisma/schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  Owner
+  Admin
+  Member
+  Agent
+}
+
+enum AuditStatus {
+  SUCCESS
+  FAILURE
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  domain    String   @unique
+  plan      String   @default("Growth") // Growth, Professional, Enterprise
+  status    String   @default("active") // active, suspended
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  workspaces Workspace[]
+  auditLogs AuditLog[]
+
+  @@map("tenants")
+}
+
+enum WorkspaceRole {
+  Owner
+  Admin
+  Manager
+  SDR
+  Viewer
+}
+
+model User {
+  id                     String    @id @default(uuid())
+  email                  String    @unique
+  passwordHash           String
+  name                   String
+  role                   Role      @default(Member)
+  isVerified             Boolean   @default(false)
+  avatar                 String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  tenantId               String
+  
+  tenant                 Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  refreshTokens          RefreshToken[]
+  passwordResets         PasswordResetToken[]
+  emailVerifications     EmailVerificationToken[]
+  memberships            WorkspaceMembership[]
+  invitations            WorkspaceInvitation[] @relation("InvitedByUser")
+  auditLogs              AuditLog[]
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+model Workspace {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String
+  tenantId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  memberships  WorkspaceMembership[]
+  invitations  WorkspaceInvitation[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@map("workspaces")
+}
+
+model WorkspaceMembership {
+  id          String        @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceRole @default(Viewer)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@map("workspace_memberships")
+}
+
+model WorkspaceInvitation {
+  id          String        @id @default(uuid())
+  workspaceId String
+  email       String
+  role        WorkspaceRole @default(Viewer)
+  token       String        @unique
+  expiresAt   DateTime
+  invitedById String
+  createdAt   DateTime      @default(now())
+  isAccepted  Boolean       @default(false)
+
+  workspace  Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy  User      @relation("InvitedByUser", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([invitedById])
+  @@map("workspace_invitations")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  jti       String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  isRevoked Boolean  @default(false)
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  isUsed    Boolean  @default(false)
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  isUsed    Boolean  @default(false)
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verification_tokens")
+}
+
+model AuditLog {
+  id        String      @id @default(uuid())
+  timestamp DateTime    @default(now())
+  action    String
+  userId    String?
+  tenantId  String?
+  ipAddress String
+  userAgent String
+  status    AuditStatus
+  reason    String?
+
+  user      User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  tenant    Tenant?     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([tenantId])
+  @@map("audit_logs")
+}
