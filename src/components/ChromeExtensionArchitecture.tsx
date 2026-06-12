@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   Chrome, LayoutTemplate, Layers, 
   Zap, Code2, Database, Network,
-  ShieldCheck, Webhook, Box
+  ShieldCheck, Webhook, Box, AlertTriangle
 } from 'lucide-react';
 
 export default function ChromeExtensionArchitecture() {
