@@ -895,14 +895,37 @@ async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
-      appType: "spa"
+      appType: "mpa"
     });
+    
+    app.use((req, res, next) => {
+      const host = req.headers.host || "";
+      if (req.path === "/") {
+        if (host.startsWith("app.")) req.url = "/app.html";
+        else if (host.startsWith("docs.")) req.url = "/docs.html";
+        else if (host.startsWith("admin.")) req.url = "/admin.html";
+        else if (host.startsWith("status.")) req.url = "/status.html";
+      }
+      next();
+    });
+
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+      const host = req.headers.host || "";
+      if (host.startsWith("app.")) {
+        res.sendFile(path.join(distPath, "app.html"));
+      } else if (host.startsWith("docs.")) {
+        res.sendFile(path.join(distPath, "docs.html"));
+      } else if (host.startsWith("admin.")) {
+        res.sendFile(path.join(distPath, "admin.html"));
+      } else if (host.startsWith("status.")) {
+        res.sendFile(path.join(distPath, "status.html"));
+      } else {
+        res.sendFile(path.join(distPath, "index.html"));
+      }
     });
   }
 
