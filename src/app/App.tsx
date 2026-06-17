@@ -1,13 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import Dashboard from '../components/Dashboard';
 import LoginPage from './components/LoginPage';
+import SetupWizard from './components/SetupWizard';
 import { Layout } from '../shared/Layout';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [selectedTenant, setSelectedTenant] = useState<any>(null);
+  const [hasVerifiedDomain, setHasVerifiedDomain] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  const fetchDomains = async (token: string) => {
+    try {
+      const res = await fetch('/api/v2/dns/list', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const verified = data.domains.some((d: any) => d.status === 'verified');
+        setHasVerifiedDomain(verified);
+      }
+    } catch (err) {
+      console.error("Failed to fetch domains:", err);
+    }
+  };
 
   useEffect(() => {
     // Check for existing session
@@ -37,6 +54,7 @@ export default function App() {
             plan: "Growth"
           });
           setIsAuthenticated(true);
+          await fetchDomains(token);
         } else {
           localStorage.removeItem('accessToken');
         }
@@ -50,7 +68,7 @@ export default function App() {
     checkAuth();
   }, []);
 
-  const handleLoginSuccess = (data: any) => {
+  const handleLoginSuccess = async (data: any) => {
     setUser(data.user);
     setSelectedTenant({
       id: data.user.tenantId,
@@ -58,6 +76,7 @@ export default function App() {
       plan: "Growth"
     });
     setIsAuthenticated(true);
+    await fetchDomains(data.accessToken);
   };
 
   const handleLogout = async () => {
@@ -90,6 +109,14 @@ export default function App() {
     return (
       <Layout>
         <LoginPage onLoginSuccess={handleLoginSuccess} />
+      </Layout>
+    );
+  }
+
+  if (!hasVerifiedDomain) {
+    return (
+      <Layout>
+        <SetupWizard />
       </Layout>
     );
   }

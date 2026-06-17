@@ -50,6 +50,17 @@ interface InMemWorkspaceInvitation {
 }
 
 
+interface InMemVerifiedDomain {
+  id: string;
+  tenantId: string;
+  domain: string;
+  isSpfValid: boolean;
+  isDkimValid: boolean;
+  isDmarcValid: boolean;
+  lastCheckedAt: Date;
+  status: string;
+}
+
 interface InMemUser {
   id: string;
   email: string;
@@ -356,6 +367,7 @@ class InMemoryStore {
   public static passwordResets: InMemPasswordReset[] = [];
   public static emailVerifications: InMemEmailVerification[] = [];
   public static magicLinkTokens: InMemMagicLinkToken[] = [];
+  public static verifiedDomains: InMemVerifiedDomain[] = [];
   public static auditLogs: InMemAuditLog[] = [];
 
   public static prospects: InMemProspect[] = [
@@ -530,7 +542,9 @@ export class DatabaseClient {
 
   public static async initialize(): Promise<void> {
     const dbUrl = process.env.DATABASE_URL;
-    if (dbUrl && dbUrl !== "" && !dbUrl.includes("placeholder")) {
+    const isSandboxForce = process.env.IS_SANDBOX === "true" || process.env.NODE_ENV === "test";
+    
+    if (dbUrl && dbUrl !== "" && !dbUrl.includes("placeholder") && !isSandboxForce) {
       this.isUsingPrisma = true;
       try {
         await prisma.$connect();
@@ -1541,6 +1555,38 @@ export class DatabaseClient {
     });
     thread.updatedAt = new Date();
     return thread;
+  }
+
+  // --- DNS & DOMAIN VERIFICATION ---
+  public static async listVerifiedDomains(tenantId: string): Promise<any[]> {
+    if (this.isUsingPrisma) {
+      return prisma.verifiedDomain.findMany({ where: { tenantId } });
+    }
+    return InMemoryStore.verifiedDomains.filter(d => d.tenantId === tenantId);
+  }
+
+  public static async upsertVerifiedDomain(tenantId: string, data: any): Promise<any> {
+    if (this.isUsingPrisma) {
+      return prisma.verifiedDomain.upsert({
+        where: { domain: data.domain },
+        update: { ...data },
+        create: { ...data, tenantId }
+      });
+    }
+    const existingIndex = InMemoryStore.verifiedDomains.findIndex(d => d.domain === data.domain);
+    if (existingIndex > -1) {
+      const updated = { ...InMemoryStore.verifiedDomains[existingIndex], ...data };
+      InMemoryStore.verifiedDomains[existingIndex] = updated;
+      return updated;
+    }
+    const newDomain = {
+      id: `dom-${Math.floor(Math.random() * 1000000)}`,
+      tenantId,
+      ...data,
+      lastCheckedAt: new Date()
+    };
+    InMemoryStore.verifiedDomains.push(newDomain);
+    return newDomain;
   }
 
   public static getInMemoryStore() {

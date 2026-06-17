@@ -102,8 +102,25 @@ model Tenant {
   workspaces    Workspace[]
   auditLogs     AuditLog[]
   subscriptions Subscription[]
+  verifiedDomains VerifiedDomain[]
 
   @@map("tenants")
+}
+
+model VerifiedDomain {
+  id            String   @id @default(uuid())
+  tenantId      String
+  domain        String   @unique
+  isSpfValid    Boolean  @default(false)
+  isDkimValid   Boolean  @default(false)
+  isDmarcValid  Boolean  @default(false)
+  lastCheckedAt DateTime @default(now())
+  status        String   @default("pending") // pending, verified, failed
+  
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("verified_domains")
 }
 
 model User {

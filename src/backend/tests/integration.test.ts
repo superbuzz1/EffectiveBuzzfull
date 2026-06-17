@@ -43,6 +43,10 @@ export async function runIntegrationTests(log: (msg: string) => void): Promise<{
 
         const res = {
           setHeader: () => {},
+          getHeader: () => {},
+          append: () => {},
+          cookie: () => res,
+          clearCookie: () => res,
           status: (code: number) => {
             statusValue = code;
             return res;
