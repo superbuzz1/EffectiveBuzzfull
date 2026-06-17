@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Dashboard from '../components/Dashboard';
+import { Layout } from '../shared/Layout';
 
 export default function App() {
   const [currentRole, setCurrentRole] = useState<'Owner' | 'Admin' | 'Member' | 'Agent'>('Admin');
@@ -10,9 +11,11 @@ export default function App() {
   });
 
   return (
-    <Dashboard 
-      currentTenant={selectedTenant}
-      rbacRole={currentRole}
-    />
+    <Layout>
+      <Dashboard 
+        currentTenant={selectedTenant}
+        rbacRole={currentRole}
+      />
+    </Layout>
   );
 }
