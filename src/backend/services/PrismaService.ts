@@ -1,6 +1,9 @@
 // src/backend/services/PrismaService.ts
+import { PrismaClient, Role, WorkspaceRole, AuditStatus } from '@prisma/client';
 import { UserRole } from '../types/auth';
-import { WorkspaceRole } from '../types/workspace';
+// import { WorkspaceRole } from '../types/workspace'; // Already imported from @prisma/client
+
+const prisma = new PrismaClient();
 
 /**
  * Production-ready in-memory database adapter for sandbox reliability.
@@ -529,22 +532,39 @@ export class DatabaseClient {
     const dbUrl = process.env.DATABASE_URL;
     if (dbUrl && dbUrl !== "" && !dbUrl.includes("placeholder")) {
       this.isUsingPrisma = true;
-      console.log("[DB_SERVICE] Production database connection enqueued via Prisma Client.");
+      try {
+        await prisma.$connect();
+        console.log("[DB_SERVICE] Production database connection enqueued via Prisma Client.");
+      } catch (err) {
+        console.error("[DB_SERVICE] Prisma connection failed, falling back to in-memory store:", err);
+        this.isUsingPrisma = false;
+      }
     } else {
       console.log("[DB_SERVICE] Running In-Memory Tenant & User secure database sandbox registry.");
     }
   }
 
   // --- TENANT QUERIES ---
-  public static async findTenantById(id: string): Promise<InMemTenant | null> {
+  public static async findTenantById(id: string): Promise<any | null> {
+    if (this.isUsingPrisma) {
+      return prisma.tenant.findUnique({ where: { id } });
+    }
     return InMemoryStore.tenants.find(t => t.id === id) || null;
   }
 
-  public static async findTenantByDomain(domain: string): Promise<InMemTenant | null> {
+  public static async findTenantByDomain(domain: string): Promise<any | null> {
+    if (this.isUsingPrisma) {
+      return prisma.tenant.findUnique({ where: { domain } });
+    }
     return InMemoryStore.tenants.find(t => t.domain.toLowerCase() === domain.toLowerCase()) || null;
   }
 
-  public static async createTenant(name: string, domain: string): Promise<InMemTenant> {
+  public static async createTenant(name: string, domain: string): Promise<any> {
+    if (this.isUsingPrisma) {
+      return prisma.tenant.create({
+        data: { name, domain, plan: "Growth", status: "active" }
+      });
+    }
     const exists = await this.findTenantByDomain(domain);
     if (exists) throw new Error("A tenant with this domain already exists.");
 
@@ -562,15 +582,24 @@ export class DatabaseClient {
   }
 
   // --- USER QUERIES ---
-  public static async findUserByEmail(email: string): Promise<InMemUser | null> {
+  public static async findUserByEmail(email: string): Promise<any | null> {
+    if (this.isUsingPrisma) {
+      return prisma.user.findUnique({ where: { email } });
+    }
     return InMemoryStore.users.find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
   }
 
-  public static async findUserById(id: string): Promise<InMemUser | null> {
+  public static async findUserById(id: string): Promise<any | null> {
+    if (this.isUsingPrisma) {
+      return prisma.user.findUnique({ where: { id } });
+    }
     return InMemoryStore.users.find(u => u.id === id) || null;
   }
 
-  public static async createUser(data: Omit<InMemUser, 'id' | 'createdAt' | 'updatedAt'>): Promise<InMemUser> {
+  public static async createUser(data: any): Promise<any> {
+    if (this.isUsingPrisma) {
+      return prisma.user.create({ data });
+    }
     const newUser: InMemUser = {
       id: `usr-${Math.floor(Math.random() * 1000000)}`,
       ...data,
@@ -581,7 +610,10 @@ export class DatabaseClient {
     return newUser;
   }
 
-  public static async updateUserVerificationStatus(id: string, isVerified: boolean): Promise<InMemUser> {
+  public static async updateUserVerificationStatus(id: string, isVerified: boolean): Promise<any> {
+    if (this.isUsingPrisma) {
+      return prisma.user.update({ where: { id }, data: { isVerified } });
+    }
     const user = await this.findUserById(id);
     if (!user) throw new Error("User identifier not found.");
     user.isVerified = isVerified;
@@ -589,7 +621,10 @@ export class DatabaseClient {
     return user;
   }
 
-  public static async updateUserPassword(id: string, passwordHash: string): Promise<InMemUser> {
+  public static async updateUserPassword(id: string, passwordHash: string): Promise<any> {
+    if (this.isUsingPrisma) {
+      return prisma.user.update({ where: { id }, data: { passwordHash } });
+    }
     const user = await this.findUserById(id);
     if (!user) throw new Error("User identifier not found.");
     user.passwordHash = passwordHash;
@@ -598,7 +633,10 @@ export class DatabaseClient {
   }
 
   // --- REFRESH TOKEN ACTIONS ---
-  public static async saveRefreshToken(data: Omit<InMemRefreshToken, 'id' | 'createdAt' | 'isRevoked'>): Promise<InMemRefreshToken> {
+  public static async saveRefreshToken(data: any): Promise<any> {
+    if (this.isUsingPrisma) {
+      return prisma.refreshToken.create({ data });
+    }
     const record: InMemRefreshToken = {
       id: `rt-${Math.floor(Math.random() * 1000000)}`,
       ...data,
@@ -609,11 +647,18 @@ export class DatabaseClient {
     return record;
   }
 
-  public static async findRefreshToken(token: string): Promise<InMemRefreshToken | null> {
+  public static async findRefreshToken(token: string): Promise<any | null> {
+    if (this.isUsingPrisma) {
+      return prisma.refreshToken.findUnique({ where: { token } });
+    }
     return InMemoryStore.refreshTokens.find(t => t.token === token) || null;
   }
 
   public static async revokeRefreshTokenByJti(jti: string): Promise<void> {
+    if (this.isUsingPrisma) {
+      await prisma.refreshToken.update({ where: { jti }, data: { isRevoked: true } });
+      return;
+    }
     const token = InMemoryStore.refreshTokens.find(t => t.jti === jti);
     if (token) {
       token.isRevoked = true;
@@ -621,13 +666,21 @@ export class DatabaseClient {
   }
 
   public static async revokeAllRefreshTokensForUser(userId: string): Promise<void> {
+    if (this.isUsingPrisma) {
+      await prisma.refreshToken.updateMany({ where: { userId }, data: { isRevoked: true } });
+      return;
+    }
     InMemoryStore.refreshTokens
       .filter(t => t.userId === userId)
       .forEach(t => t.isRevoked = true);
   }
 
   // --- PASSWORD RESET TOKENS ---
-  public static async createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<InMemPasswordReset> {
+  public static async createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<any> {
+    if (this.isUsingPrisma) {
+      await prisma.passwordResetToken.updateMany({ where: { userId }, data: { isUsed: true } });
+      return prisma.passwordResetToken.create({ data: { userId, token, expiresAt } });
+    }
     // Invalidate existing tokens first
     InMemoryStore.passwordResets
       .filter(t => t.userId === userId)
@@ -645,7 +698,15 @@ export class DatabaseClient {
     return record;
   }
 
-  public static async verifyAndUsePasswordResetToken(token: string): Promise<InMemPasswordReset> {
+  public static async verifyAndUsePasswordResetToken(token: string): Promise<any> {
+    if (this.isUsingPrisma) {
+      const resetToken = await prisma.passwordResetToken.findUnique({ where: { token } });
+      if (!resetToken) throw new Error("Password reset token is invalid or inactive.");
+      if (resetToken.isUsed) throw new Error("This token has already been spent.");
+      if (resetToken.expiresAt < new Date()) throw new Error("This token has expired.");
+      
+      return prisma.passwordResetToken.update({ where: { token }, data: { isUsed: true } });
+    }
     const resetToken = InMemoryStore.passwordResets.find(t => t.token === token);
     if (!resetToken) throw new Error("Password reset token is invalid or inactive.");
     if (resetToken.isUsed) throw new Error("This token has already been spent.");
@@ -656,7 +717,10 @@ export class DatabaseClient {
   }
 
   // --- EMAIL VERIFICATION TOKENS ---
-  public static async createEmailVerificationToken(userId: string, token: string, expiresAt: Date): Promise<InMemEmailVerification> {
+  public static async createEmailVerificationToken(userId: string, token: string, expiresAt: Date): Promise<any> {
+    if (this.isUsingPrisma) {
+      return prisma.emailVerificationToken.create({ data: { userId, token, expiresAt } });
+    }
     const record: InMemEmailVerification = {
       id: `ev-${Math.floor(Math.random() * 1000000)}`,
       token,
@@ -669,7 +733,15 @@ export class DatabaseClient {
     return record;
   }
 
-  public static async verifyAndUseEmailVerificationToken(token: string): Promise<InMemEmailVerification> {
+  public static async verifyAndUseEmailVerificationToken(token: string): Promise<any> {
+    if (this.isUsingPrisma) {
+      const verToken = await prisma.emailVerificationToken.findUnique({ where: { token } });
+      if (!verToken) throw new Error("Email verification token is invalid or unrecognized.");
+      if (verToken.isUsed) throw new Error("This verification token has already been processed.");
+      if (verToken.expiresAt < new Date()) throw new Error("This verification token has expired.");
+
+      return prisma.emailVerificationToken.update({ where: { token }, data: { isUsed: true } });
+    }
     const verToken = InMemoryStore.emailVerifications.find(t => t.token === token);
     if (!verToken) throw new Error("Email verification token is invalid or unrecognized.");
     if (verToken.isUsed) throw new Error("This verification token has already been processed.");
@@ -685,7 +757,22 @@ export class DatabaseClient {
     token: string, 
     expiresAt: Date,
     options?: { name?: string; tenantName?: string; workspaceName?: string }
-  ): Promise<InMemMagicLinkToken> {
+  ): Promise<any> {
+    if (this.isUsingPrisma) {
+      // Invalidate existing magic links for same email
+      await prisma.magicLinkToken.updateMany({ 
+        where: { email: email.toLowerCase(), isUsed: false }, 
+        data: { isUsed: true } 
+      });
+      return prisma.magicLinkToken.create({ 
+        data: { 
+          email: email.toLowerCase(), 
+          token, 
+          expiresAt,
+          ...options
+        } 
+      });
+    }
     // Invalidate existing magic links for same email
     InMemoryStore.magicLinkTokens
       .filter(t => t.email.toLowerCase() === email.toLowerCase())
@@ -706,7 +793,15 @@ export class DatabaseClient {
     return record;
   }
 
-  public static async verifyAndUseMagicLinkToken(token: string): Promise<InMemMagicLinkToken> {
+  public static async verifyAndUseMagicLinkToken(token: string): Promise<any> {
+    if (this.isUsingPrisma) {
+      const linkToken = await prisma.magicLinkToken.findUnique({ where: { token } });
+      if (!linkToken) throw new Error("Magic link token is invalid or unrecognized.");
+      if (linkToken.isUsed) throw new Error("This magic link has already been used.");
+      if (linkToken.expiresAt < new Date()) throw new Error("This magic link token has expired.");
+
+      return prisma.magicLinkToken.update({ where: { token }, data: { isUsed: true } });
+    }
     const linkToken = InMemoryStore.magicLinkTokens.find(t => t.token === token);
     if (!linkToken) throw new Error("Magic link token is invalid or unrecognized.");
     if (linkToken.isUsed) throw new Error("This magic link has already been used.");

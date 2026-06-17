@@ -188,10 +188,18 @@ export class AuthController {
         reason: null
       });
 
+      // Set refresh token in secure cookie
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 30 * 24 * 3600 * 1000 // 30 Days
+      });
+
       return res.json({
         success: true,
         accessToken,
-        refreshToken,
+        refreshToken, // Keep for backward compatibility with frontend consumers
         expiresIn: 3600,
         user: {
           id: user.id,
@@ -230,7 +238,10 @@ export class AuthController {
       const expEpoch = Math.floor(Date.now() / 1000) + 3600; // Force-blacklist for remaining TTL hour safety margin
       await RedisService.blacklistToken(jti, expEpoch);
 
-      // 3. Log security state change
+      // 3. Clear refresh token cookie
+      res.clearCookie('refreshToken');
+
+      // 4. Log security state change
       await DatabaseClient.recordAuditEntry({
         action: `User Sign-Out: Session JTI [${jti}] permanently enqueued to eviction blacklist registry.`,
         userId: id,
@@ -256,7 +267,7 @@ export class AuthController {
    * Action: Issue new Access Token using valid Refresh Token
    */
   public static async refreshToken(req: Request, res: Response) {
-    const { refreshToken } = req.body;
+    const refreshToken = req.body.refreshToken || req.cookies?.refreshToken;
     if (!refreshToken) {
       return res.status(400).json({ error: "Missing required validation payload parameter: refreshToken." });
     }
@@ -650,10 +661,18 @@ export class AuthController {
         reason: null
       });
 
+      // Set refresh token in secure cookie
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 30 * 24 * 3600 * 1000 // 30 Days
+      });
+
       return res.status(200).json({
         success: true,
         accessToken,
-        refreshToken,
+        refreshToken, // Keep for backward compatibility
         expiresIn: 3600,
         tenantCreated,
         workspaceCreated,

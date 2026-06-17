@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction } from "express";
+import cookieParser from "cookie-parser";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
@@ -36,6 +37,7 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
+app.use(cookieParser());
 app.use(metricsMiddleware);
 
 // Mount multi-tenant V2 Auth Service Router

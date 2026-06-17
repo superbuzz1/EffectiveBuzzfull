@@ -334,6 +334,23 @@ model EmailVerificationToken {
   @@map("email_verification_tokens")
 }
 
+model MagicLinkToken {
+  id            String   @id @default(uuid())
+  token         String   @unique
+  email         String
+  name          String?
+  tenantName    String?
+  workspaceName String?
+  expiresAt     DateTime
+  isUsed        Boolean  @default(false)
+  
+  createdAt     DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
+  @@map("magic_link_tokens")
+}
+
 model AuditLog {
   id        String      @id @default(uuid())
   tenantId  String?
