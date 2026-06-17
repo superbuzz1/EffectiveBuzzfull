@@ -17,6 +17,7 @@ import TeamBillingManagement from './components/TeamBillingManagement';
 import LeadEnrichmentPipeline from './components/LeadEnrichmentPipeline';
 import NLPSentimentEngine from './components/NLPSentimentEngine';
 import AnthropicCachingOptimizer from './components/AnthropicCachingOptimizer';
+import SOC2ComplianceDashboard from './components/SOC2ComplianceDashboard';
 import SOC2ComplianceConsole from './components/SOC2ComplianceConsole';
 import SaaSSecurityArchitecture from './components/SaaSSecurityArchitecture';
 import SaaSDevOpsArchitecture from './components/SaaSDevOpsArchitecture';
@@ -453,6 +454,10 @@ export default function App() {
 
             {activeTab === 'anthropic_caching' && (
               <AnthropicCachingOptimizer />
+            )}
+
+            {activeTab === 'soc2_compliance' && (
+              <SOC2ComplianceDashboard />
             )}
 
             {activeTab === 'soc2_compliance' && (
