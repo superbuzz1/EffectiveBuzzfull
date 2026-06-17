@@ -47,8 +47,11 @@ export async function executeAllServiceTests(logCallback: (msg: string) => void)
   };
 }
 
-// Support direct command-line execution when called via: npx tsx src/backend/tests/run-tests.ts
-if (typeof import.meta !== 'undefined' && import.meta.url && import.meta.url.includes(process.argv[1])) {
+// Support direct command-line execution
+const isMain = (typeof require !== 'undefined' && require.main === module) || 
+               (process.argv[1] && (process.argv[1].endsWith('run-tests.ts') || process.argv[1].endsWith('run-tests.js')));
+
+if (isMain) {
   executeAllServiceTests((msg) => console.log(msg))
     .then((result) => {
       process.exit(result.success ? 0 : 1);
