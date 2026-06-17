@@ -9,5 +9,7 @@ const limit = rateLimiter({ limit: 120, windowSec: 60 });
 router.use(authenticateAccessToken);
 
 router.get('/', limit, AnalyticsController.getMetrics);
+router.get('/email', limit, AnalyticsController.getEmailMetrics);
+router.get('/timeseries', limit, AnalyticsController.getTimeseries);
 
 export default router;

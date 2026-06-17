@@ -4,7 +4,7 @@ import {
   ChevronRight, ArrowRight, AlertTriangle, Clock, Settings, Terminal, 
   Brain, Network, Slack, Mail, UserCheck, Calendar, TrendingUp, 
   RotateCw, List, Plus, Trash2, ShieldCheck, FileCode, CheckCircle2,
-  GitPullRequest, GitMerge, FileJson, AlertCircle, HelpCircle
+  GitPullRequest, GitMerge, FileJson, AlertCircle, HelpCircle, Trophy, Globe, PhoneCall, Users, FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from 'motion/react';
 // ============================================================================
 
 export interface TriggerDefinition {
-  id: 'new_prospect' | 'reply_received' | 'meeting_booked';
+  id: 'new_prospect' | 'reply_received' | 'meeting_booked' | 'deal_won' | 'website_visited' | 'invoice_paid';
   name: string;
   description: string;
   icon: React.ComponentType<any>;
@@ -31,7 +31,7 @@ export interface ConditionRule {
 }
 
 export interface ActionDefinition {
-  id: 'send_email' | 'slack_alert' | 'update_crm' | 'webhook_dispatch' | 'wait_delay';
+  id: 'send_email' | 'slack_alert' | 'ai_classification' | 'update_crm' | 'webhook_dispatch' | 'wait_delay' | 'sms_dispatch' | 'linkedin_connect' | 'generate_contract';
   name: string;
   description: string;
   icon: React.ComponentType<any>;
@@ -99,10 +99,41 @@ const triggerOptions: TriggerDefinition[] = [
       calendar_provider: "google_workspace_calendar",
       booking_utc_time: "2026-06-09T14:30:00Z"
     }
+  },
+  {
+    id: 'deal_won',
+    name: 'Opportunity Closed Won',
+    description: 'Fires when a deal stage is marked as Closed Won in the CRM.',
+    icon: Trophy,
+    color: 'text-amber-400',
+    bgColor: 'bg-amber-500/10',
+    borderColor: 'border-amber-500/20',
+    samplePayload: {
+      event_type: "deal.won",
+      opportunity_id: "opp_1048B",
+      amount: 45000,
+      currency: "USD",
+      closed_by: "usr_sarah_jenkins_ae"
+    }
+  },
+  {
+    id: 'website_visited',
+    name: 'High Intent Site Visit',
+    description: 'Triggered when a prospect visits a high-value page (e.g. Pricing).',
+    icon: Globe,
+    color: 'text-blue-400',
+    bgColor: 'bg-blue-500/10',
+    borderColor: 'border-blue-500/20',
+    samplePayload: {
+      event_type: "page.visited",
+      url: "https://effectivebuzz.online/pricing",
+      time_on_page_seconds: 145,
+      ip_address: "192.168.1.1"
+    }
   }
 ];
 
-const availableConditionFields: Record<'new_prospect' | 'reply_received' | 'meeting_booked', { value: string; label: string; operators: string[] }[]> = {
+const availableConditionFields: Record<TriggerDefinition['id'], { value: string; label: string; operators: string[] }[]> = {
   new_prospect: [
     { value: 'score', label: 'Lead Score Score', operators: ['greater_than', 'less_than', 'equals'] },
     { value: 'estimated_revenue', label: 'Estimated Annual Revenue ($)', operators: ['greater_than', 'less_than'] },
@@ -118,6 +149,17 @@ const availableConditionFields: Record<'new_prospect' | 'reply_received' | 'meet
     { value: 'duration_minutes', label: 'Meeting Duration (mins)', operators: ['greater_than', 'equals'] },
     { value: 'calendar_provider', label: 'Calendar Cloud Service', operators: ['equals'] },
     { value: 'topic', label: 'Meeting Subject Title', operators: ['contains'] }
+  ],
+  deal_won: [
+    { value: 'amount', label: 'Opportunity Amount ($)', operators: ['greater_than', 'less_than'] },
+    { value: 'currency', label: 'Currency', operators: ['equals'] }
+  ],
+  website_visited: [
+    { value: 'time_on_page_seconds', label: 'Time on Page (Seconds)', operators: ['greater_than'] },
+    { value: 'url', label: 'URL Path', operators: ['contains', 'equals'] }
+  ],
+  invoice_paid: [
+    { value: 'amount', label: 'Invoice Amount', operators: ['greater_than', 'less_than'] }
   ]
 };
 
@@ -131,7 +173,7 @@ const actionOptions: ActionDefinition[] = [
     bgColor: 'bg-amber-500/10',
     borderColor: 'border-amber-500/20',
     payloadTemplate: {
-      webhook_url: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
+      webhook_url: "https://api.slack.com/webhook/placeholder-example",
       channel: "#sales-alerts-high-tier",
       blocks_layout: "Slack Markdown Hero block detailing custom parameters and variables."
     }
@@ -191,6 +233,49 @@ const actionOptions: ActionDefinition[] = [
       delay_duration_hours: 24,
       skip_weekends: true
     }
+  },
+  {
+    id: 'sms_dispatch',
+    name: 'Dispatch SMS Message',
+    description: 'Sends an automated text message via Twilio infrastructure.',
+    icon: PhoneCall,
+    color: 'text-orange-400',
+    bgColor: 'bg-orange-500/10',
+    borderColor: 'border-orange-500/20',
+    payloadTemplate: {
+      recipient_phone: "+15550192834",
+      message: "Hi {{firstName}}, looking forward to our call tomorrow!"
+    }
+  },
+  {
+    id: 'linkedin_connect',
+    name: 'Auto LinkedIn Connect',
+    description: 'Fires an automated LinkedIn connection request with a custom note.',
+    icon: Users,
+    color: 'text-blue-500',
+    bgColor: 'bg-blue-600/10',
+    borderColor: 'border-blue-600/20',
+    payloadTemplate: {
+      linkedin_url: "{{prospect.linkedin}}",
+      note: "Hey {{firstName}}, noticed you lead engineering at {{company}}. Let's connect."
+    }
+  },
+  {
+    id: 'generate_contract',
+    name: 'Generate Legal Contract',
+    description: 'Auto-fills and generates a PDF contract template via DocuSign/PandaDoc.',
+    icon: FileText,
+    color: 'text-indigo-500',
+    bgColor: 'bg-indigo-600/10',
+    borderColor: 'border-indigo-600/20',
+    payloadTemplate: {
+      template_id: "doc_nda_enterprise_v2",
+      signers: ["{{prospect.email}}", "{{assignee.email}}"],
+      variables: {
+        company_name: "{{company}}",
+        deal_amount: "{{deal.amount}}"
+      }
+    }
   }
 ];
 
@@ -221,7 +306,55 @@ export default function WorkflowAutomationEngine() {
     avgLatencyMs: 14.5
   });
 
+  const [dbWorkflows, setDbWorkflows] = useState<any[]>([]);
+  const [dbExecutions, setDbExecutions] = useState<any[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const fetchWorkflows = async () => {
+    try {
+      const res = await fetch('/api/v2/workflows', { headers: { 'Authorization': `Bearer mock-token` } });
+      const data = await res.json();
+      if (data.success) {
+        setDbWorkflows(data.data);
+        if (data.data.length > 0) {
+          fetchExecutions(data.data[0].id);
+        }
+      }
+    } catch (err) {}
+  };
+
+  const fetchExecutions = async (workflowId: string) => {
+    try {
+      const res = await fetch(`/api/v2/workflows/${workflowId}/executions`, { headers: { 'Authorization': `Bearer mock-token` } });
+      const data = await res.json();
+      if (data.success) {
+        setDbExecutions(data.data);
+      }
+    } catch (err) {}
+  };
+
+  const handleSaveToDb = async () => {
+    setIsSaving(true);
+    try {
+      const payload = {
+        name: workflowName,
+        description: 'Auto-generated via AI SDR Engine.',
+        trigger: selectedTriggerId,
+        nodes: [{ type: 'action', id: selectedActionId, config: {} }],
+        edges: []
+      };
+      await fetch('/api/v2/workflows', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer mock-token` },
+        body: JSON.stringify(payload)
+      });
+      await fetchWorkflows();
+    } catch (err) {}
+    setIsSaving(false);
+  };
+
   useEffect(() => {
+    fetchWorkflows();
     // Small background fluctuation for stats realism
     const interval = setInterval(() => {
       setQueueMetrics(prev => ({
@@ -531,7 +664,17 @@ CREATE INDEX IF NOT EXISTS wfl_exec_duration_idx ON workflow_executions(duration
                   className="font-display font-medium text-white text-base bg-transparent border-b border-transparent hover:border-gray-800 focus:border-emerald-500 focus:outline-none transition-all px-0 w-full"
                 />
               </div>
-              <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 px-2 py-0.5 rounded font-mono font-bold uppercase shrink-0">AST Draft</span>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={handleSaveToDb} 
+                  disabled={isSaving}
+                  className="text-[10px] bg-emerald-500 hover:bg-emerald-400 text-slate-900 px-3 py-1 rounded font-mono font-bold uppercase shrink-0 flex items-center gap-1 transition-colors disabled:opacity-50"
+                >
+                  <Database className="w-3 h-3" />
+                  {isSaving ? 'Deploying...' : 'Deploy to Production'}
+                </button>
+                <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 px-2 py-0.5 rounded font-mono font-bold uppercase shrink-0">AST Draft</span>
+              </div>
             </div>
 
             {/* STEP 1: TRIGGER NODE CARD */}
@@ -707,6 +850,26 @@ CREATE INDEX IF NOT EXISTS wfl_exec_duration_idx ON workflow_executions(duration
                 RUN AST WORKFLOW SIMULATION
               </button>
             </div>
+
+            {dbWorkflows.length > 0 && (
+              <div className="mt-8 pt-6 border-t border-gray-800">
+                <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                  <Database className="w-4 h-4 text-indigo-400" />
+                  Deployed Workflows
+                </h4>
+                <div className="space-y-3">
+                  {dbWorkflows.map(wf => (
+                    <div key={wf.id} className="bg-slate-900 border border-gray-800 rounded p-3 flex justify-between items-center">
+                      <div>
+                        <div className="text-white text-sm font-semibold">{wf.name}</div>
+                        <div className="text-xs text-gray-500">Trigger: {wf.trigger}</div>
+                      </div>
+                      <div className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-1 rounded">Active</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Interactive Live Logger & Terminal side console */}

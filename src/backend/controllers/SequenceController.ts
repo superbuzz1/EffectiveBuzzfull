@@ -103,4 +103,26 @@ export class SequenceController {
       return res.status(400).json({ error: err.message });
     }
   }
+
+  public static async addVariantToStep(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { variant_label, distribution_percentage, template_subject, template_body } = req.body;
+      const variant = await SequenceService.addVariantToStep(id, variant_label, distribution_percentage || 50, template_subject, template_body);
+      return res.status(201).json({ success: true, data: variant });
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message });
+    }
+  }
+
+  public static async updateStepCondition(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { condition_metric, condition_operator, condition_value, true_next_step_id, false_next_step_id } = req.body;
+      const step = await SequenceService.updateStepCondition(id, condition_metric, condition_operator, condition_value, true_next_step_id, false_next_step_id);
+      return res.json({ success: true, data: step });
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message });
+    }
+  }
 }

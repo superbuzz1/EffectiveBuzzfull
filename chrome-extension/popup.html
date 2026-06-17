@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      width: 320px;
+      margin: 0;
+      padding: 16px;
+    }
+    h3 {
+      margin-top: 0;
+      color: #34d399; /* emerald-400 */
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-bottom: 16px;
+    }
+    button {
+      background: linear-gradient(to right, #10b981, #14b8a6);
+      color: #022c22;
+      border: none;
+      padding: 10px;
+      width: 100%;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 14px;
+      transition: opacity 0.2s;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .input-group {
+      margin-bottom: 12px;
+    }
+    .input-group label {
+      display: block;
+      font-size: 12px;
+      margin-bottom: 4px;
+      color: #cbd5e1;
+    }
+    .input-group input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: white;
+    }
+    #result {
+      margin-top: 12px;
+      font-size: 12px;
+      text-align: center;
+    }
+    .success { color: #34d399; }
+    .error { color: #ef4444; }
+  </style>
+</head>
+<body>
+  <h3>⚡ EffectiveBuzz Capture</h3>
+  <div class="status" id="status-text">Detecting lead on page...</div>
+  
+  <div class="input-group">
+    <label>API Key / Workspace Token</label>
+    <input type="password" id="api-key" placeholder="eb_live_xxxxxx" />
+  </div>
+
+  <button id="capture-btn" disabled>Capture Lead to Pipeline</button>
+  <div id="result"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

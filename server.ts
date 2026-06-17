@@ -19,8 +19,16 @@ import aiQualificationRoutesV2 from "./src/backend/routes/aiQualificationRoutes"
 import analyticsRoutesV2 from "./src/backend/routes/analyticsRoutes";
 import billingRoutesV2 from "./src/backend/routes/billingRoutes";
 import adminConsoleRoutesV2 from "./src/backend/routes/adminConsoleRoutes";
+import trackingRoutes from "./src/backend/routes/trackingRoutes";
+import webhookRoutes from "./src/backend/routes/webhookRoutes";
 import metricsRoutes, { metricsMiddleware } from "./src/backend/routes/metricsRoutes";
 import { executeAllServiceTests } from "./src/backend/tests/run-tests";
+import { CampaignExecutionService } from "./src/backend/services/CampaignExecutionService";
+import campaignRoutesV2 from "./src/backend/routes/campaignRoutes";
+import aiAgentRoutes from "./src/backend/routes/aiAgentRoutes";
+import crmRoutes from "./src/backend/routes/crmRoutes";
+import meetingRoutes from "./src/backend/routes/meetingRoutes";
+import workflowRoutes from "./src/backend/routes/workflowRoutes";
 
 dotenv.config({ path: [".env.local", ".env"] });
 
@@ -48,8 +56,19 @@ app.use("/api/v2/companies", companyRoutesV2);
 // Mount Sequence Builder
 app.use("/api/v2/sequences", sequenceRoutesV2);
 
+// Mount Campaign Management Router
+app.use("/api/v2/campaigns", campaignRoutesV2);
+
+// Mount AI Agent Service
+app.use("/api/v2/agents", aiAgentRoutes);
+
 // Mount Inbox Service
 app.use("/api/v2/inbox", inboxRoutesV2);
+
+// Mount Integrations & Automations
+app.use("/api/v2/crm", crmRoutes);
+app.use("/api/v2/meetings", meetingRoutes);
+app.use("/api/v2/workflows", workflowRoutes);
 
 // Mount AI Research Service
 app.use("/api/v2/ai/research", aiResearchRoutesV2);
@@ -71,9 +90,14 @@ app.use("/api/v2/analytics", analyticsRoutesV2);
 
 // Mount Billing Service
 app.use("/api/v2/billing", billingRoutesV2);
+app.use("/api/stripe", billingRoutesV2); // Legacy compat
 
 // Mount Admin Console Service
 app.use("/api/v2/admin", adminConsoleRoutesV2);
+
+// Mount Tracking & Webhook Services
+app.use("/api/track", trackingRoutes);
+app.use("/api/webhooks", webhookRoutes);
 
 // Mount Metrics Service
 app.use("/metrics", metricsRoutes);
@@ -123,6 +147,12 @@ initializePasswordHashMap().catch(err => {
   console.error("Critical failure during cryptographic user base initialization:", err);
 });
 
+// Wait for mock data initialization
+setTimeout(() => {
+  CampaignExecutionService.startDaemon(60000); // Poll every minute
+}, 2000);
+
+console.log(`[Core] System initialization sequence completed.`);
 
 let campaigns = [
   { id: "cmp-1", name: "Q3 Tech Founders Outreach", status: "Active", targetAudience: "Tech SaaS Founders", leadsCount: 240, emailsSent: 182, repliesCount: 24, conversionRate: 13.1, createdAt: "2026-05-01" },
@@ -269,6 +299,65 @@ export function authorizeRoles(allowedRoles: ('Owner' | 'Admin' | 'Member' | 'Ag
   };
 }
 
+// Email Templates & Resend Helper
+import { Resend } from 'resend';
+const resendKey = process.env.RESEND_API_KEY;
+const resend = resendKey ? new Resend(resendKey) : null;
+const FROM_EMAIL = process.env.FROM_EMAIL || 'onboarding@effectivebuzz.online';
+
+const emailTemplates = {
+  welcome: (name: string) => ({
+    subject: `Welcome to EffectiveBuzz, ${name}! 🚀`,
+    html: `<div style='font-family:Inter,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;color:#e2e8f0;padding:40px;border-radius:16px'>
+      <div style='background:linear-gradient(135deg,#3b82f6,#6366f1);padding:24px;border-radius:12px;margin-bottom:32px;text-align:center'>
+        <h1 style='margin:0;font-size:24px;font-weight:900;color:white'>⚡ EffectiveBuzz</h1>
+      </div>
+      <h2 style='color:white;font-size:20px'>Welcome aboard, ${name}!</h2>
+      <p style='color:#94a3b8;line-height:1.7'>Your AI Revenue OS is ready. Start by adding your first contacts and launching an outbound sequence.</p>
+      <a href='https://app.effectivebuzz.online' style='display:inline-block;margin-top:24px;padding:14px 28px;background:linear-gradient(135deg,#3b82f6,#6366f1);color:white;text-decoration:none;border-radius:12px;font-weight:900;font-size:14px'>Open Dashboard →</a>
+      <p style='color:#475569;font-size:12px;margin-top:32px'>EffectiveBuzz · AI Revenue OS</p>
+    </div>`,
+  }),
+  passwordReset: (resetUrl: string) => ({
+    subject: 'Reset your EffectiveBuzz password',
+    html: `<div style='font-family:Inter,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;color:#e2e8f0;padding:40px;border-radius:16px'>
+      <h2 style='color:white'>Password Reset Request</h2>
+      <p style='color:#94a3b8'>Click the link below to reset your password. This link expires in 1 hour.</p>
+      <a href='${resetUrl}' style='display:inline-block;margin-top:16px;padding:14px 28px;background:#ef4444;color:white;text-decoration:none;border-radius:12px;font-weight:900;font-size:14px'>Reset Password</a>
+      <p style='color:#475569;font-size:12px;margin-top:32px'>If you didn't request this, ignore this email.</p>
+    </div>`,
+  }),
+  sequenceEmail: (name: string, subject: string, body: string, unsubscribeUrl: string) => ({
+    subject,
+    html: `<div style='font-family:Inter,sans-serif;max-width:600px;margin:0 auto;padding:40px'>
+      <p>${body.replace(/\n/g, '<br>')}</p>
+      <hr style='margin-top:40px;border-color:#e2e8f0'>
+      <p style='color:#94a3b8;font-size:12px'>Sent via EffectiveBuzz · <a href='${unsubscribeUrl}' style='color:#6366f1'>Unsubscribe</a></p>
+    </div>`,
+  }),
+};
+
+async function sendEmail(to: string, template: { subject: string; html: string }): Promise<boolean> {
+  if (!resend || !FROM_EMAIL) {
+    console.log(`[Email] DRY RUN - To: ${to}, Subject: ${template.subject}`);
+    return true;
+  }
+  try {
+    await resend.emails.send({ from: FROM_EMAIL, to, ...template });
+    return true;
+  } catch (err) {
+    console.error('[Email] Send failed:', err);
+    return false;
+  }
+}
+
+app.post('/api/email/test', authenticateToken, async (req: Request, res: Response) => {
+  const user = (req as AuthenticatedRequest).user;
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+  const success = await sendEmail(user.email, emailTemplates.welcome(user.email.split('@')[0]));
+  res.json({ success });
+});
+
 // 1. REGISTER NEW TENANT & USER SEGMENT
 app.post("/api/auth/register", async (req, res) => {
   const { name, email, password, role, tenantId } = req.body;
@@ -313,6 +402,9 @@ app.post("/api/auth/register", async (req, res) => {
       message: `Successfully structured secure PBKDF2 credentials password hash for ${email} (${role})`,
       durationMs: 82
     });
+
+    // Send welcome email
+    await sendEmail(email, emailTemplates.welcome(name));
 
     return res.status(201).json({
       success: true,
@@ -422,7 +514,7 @@ app.post("/api/secure/billing-credentials", authenticateToken, authorizeRoles(['
   return res.json({
     authorized: true,
     data: {
-      stripeLiveKey: "sk_live_51P62f0J1S8fP90m2o79LpqWev7Yx86N79hTz001Mpxx8877",
+      stripeLiveKey: "redacted",
       billingStatus: "Operational",
       tenantPlanTier: "Enterprise Grid"
     }

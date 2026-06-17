@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "EffectiveBuzz AI Lead Scraper",
+  "version": "1.0.0",
+  "description": "Scrape LinkedIn/Apollo leads directly into your EffectiveBuzz AI Revenue OS.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://*.linkedin.com/*",
+    "https://*.apollo.io/*",
+    "https://app.effectivebuzz.online/*",
+    "http://localhost:3000/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "EffectiveBuzz Lead Capture"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.linkedin.com/in/*"],
+      "js": ["content.js"]
+    }
+  ]
+}

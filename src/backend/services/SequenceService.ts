@@ -102,4 +102,39 @@ export class SequenceService {
       }
     }
   }
+
+  public static async addVariantToStep(stepId: string, label: string, distribution: number, subject: string, content: string) {
+    const { prisma } = require('../prismaClient');
+    return await prisma.sequenceStepVariant.create({
+      data: {
+        stepId,
+        label,
+        distribution,
+        subject,
+        content
+      }
+    });
+  }
+
+  public static async updateStepCondition(
+    stepId: string,
+    metric: string,
+    operator: string,
+    value: string,
+    trueNext: string,
+    falseNext: string
+  ) {
+    const { prisma } = require('../prismaClient');
+    return await prisma.sequenceStep.update({
+      where: { id: stepId },
+      data: {
+        type: 'CONDITION',
+        conditionMetric: metric,
+        conditionOperator: operator,
+        conditionValue: value,
+        trueNextStepId: trueNext,
+        falseNextStepId: falseNext
+      }
+    });
+  }
 }

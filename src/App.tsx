@@ -90,12 +90,17 @@ import ExecutiveExecutionReport from './components/ExecutiveExecutionReport';
 import RevenueMilestones from './components/RevenueMilestones';
 import SaaSMaturityPipeline from './components/SaaSMaturityPipeline';
 import RepositoryAuditReport from './components/RepositoryAuditReport';
-import { Beaker, ShieldAlert, Briefcase, Store, FileText, Target, CheckSquare, ListOrdered, FileCode2, TerminalSquare, FileCheck2, Cloud, ServerCog, Rocket, PlayCircle, Trophy, PhoneCall, Focus, Waypoints, Magnet, Brain, GitMerge, CalendarDays, Zap, Crown, Search, FileWarning, Chrome, RefreshCw, CalendarSync, Filter, Terminal, LineChart, Milestone } from 'lucide-react';
+import { Analytics } from './components/Analytics';
+import { Beaker, ShieldAlert, Briefcase, Store, FileText, Target, CheckSquare, ListOrdered, FileCode2, TerminalSquare, FileCheck2, Cloud, ServerCog, Rocket, PlayCircle, Trophy, PhoneCall, Focus, Waypoints, Magnet, Brain, GitMerge, CalendarDays, Zap, Crown, Search, FileWarning, Chrome, RefreshCw, CalendarSync, Filter, Terminal, LineChart, Milestone, Bot, Calendar } from 'lucide-react';
 import NextActionEngine from './components/NextActionEngine';
+import AIAgentPersonaConfiguration from './components/AIAgentPersonaConfiguration';
+import CRMIntegrationConsole from './components/CRMIntegrationConsole';
+import MeetingBookingConsole from './components/MeetingBookingConsole';
+import PipelineForecastingDashboard from './components/PipelineForecastingDashboard';
 
 export default function App() {
   // Navigation Routing States
-  const [activeTab, setActiveTab ] = useState<'auth' | 'workspace' | 'user' | 'prospect' | 'company' | 'marketing' | 'saas' | 'architecture' | 'docs' | 'admin' | 'status' | 'agent' | 'workflow' | 'billing' | 'security' | 'devops' | 'founder' | 'global' | 'moat' | 'board' | 'plan' | 'cpo' | 'cro' | 'board_reset' | 'coo_operating_plan' | 'product_council_report' | 'growth_council_report' | 'engineering_council_report' | 'quarterly_board_report' | 'digital_twin_architecture' | 'executive_decision_framework' | 'predictive_intelligence' | 'capital_allocation' | 'corporate_optimization' | 'self_improving_agent_ecosystem' | 'revenue_knowledge_graph' | 'growth_experimentation_platform' | 'competitive_intelligence' | 'continuous_strategic_roadmap' | 'marketplace_strategy' | 'agent_marketplace' | 'revenue_intelligence' | 'vertical_expansion' | 'global_strategy' | 'execution_plan' | 'saas_growth' | 'saas_operator_roadmap' | 'customer_growth' | 'vc_audit' | 'saas_90day_plan' | 'launch_sprint_generator' | 'sprint_1_tasks' | 'sprint_1_prioritization' | 'sprint_1_task_1_spec' | 'sprint_1_task_1_code' | 'sprint_1_task_1_codereview' | 'production_code_review' | 'qa_validation_plan' | 'staging_assessment' | 'staging_runbook' | 'closed_beta_readiness' | 'closed_beta_launch_playbook' | 'beta_feedback_analysis' | 'first_paying_customer' | 'first_paying_customer_script' | 'first_paying_customer_post_mortem' | 'first_1k_mrr' | 'early_traction_roadmap' | 'customer_acquisition_system' | 'customer_feedback_intelligence_system' | 'product_iteration_flywheel' | 'growth_operating_system' | 'weekly_execution_loop' | 'path_to_pmf_roadmap' | 'reality_based_cto_review' | 'current_business_status' | 'next_action_engine' | 'comprehensive_status_report' | 'chrome_extension_architecture' | 'ai_studio_execution_loop' | 'weekly_reality_review' | 'growth_funnel' | 'effective_buzz_os' | 'executive_execution_report' | 'revenue_milestones' | 'saas_maturity_pipeline' | 'repository_audit'>('repository_audit');
+  const [activeTab, setActiveTab ] = useState<'analytics' | 'auth' | 'workspace' | 'user' | 'prospect' | 'company' | 'marketing' | 'saas' | 'architecture' | 'docs' | 'admin' | 'status' | 'agent' | 'ai_persona_builder' | 'crm_integrations' | 'meeting_booking' | 'pipeline_forecasting' | 'workflow' | 'billing' | 'security' | 'devops' | 'founder' | 'global' | 'moat' | 'board' | 'plan' | 'cpo' | 'cro' | 'board_reset' | 'coo_operating_plan' | 'product_council_report' | 'growth_council_report' | 'engineering_council_report' | 'quarterly_board_report' | 'digital_twin_architecture' | 'executive_decision_framework' | 'predictive_intelligence' | 'capital_allocation' | 'corporate_optimization' | 'self_improving_agent_ecosystem' | 'revenue_knowledge_graph' | 'growth_experimentation_platform' | 'competitive_intelligence' | 'continuous_strategic_roadmap' | 'marketplace_strategy' | 'agent_marketplace' | 'revenue_intelligence' | 'vertical_expansion' | 'global_strategy' | 'execution_plan' | 'saas_growth' | 'saas_operator_roadmap' | 'customer_growth' | 'vc_audit' | 'saas_90day_plan' | 'launch_sprint_generator' | 'sprint_1_tasks' | 'sprint_1_prioritization' | 'sprint_1_task_1_spec' | 'sprint_1_task_1_code' | 'sprint_1_task_1_codereview' | 'production_code_review' | 'qa_validation_plan' | 'staging_assessment' | 'staging_runbook' | 'closed_beta_readiness' | 'closed_beta_launch_playbook' | 'beta_feedback_analysis' | 'first_paying_customer' | 'first_paying_customer_script' | 'first_paying_customer_post_mortem' | 'first_1k_mrr' | 'early_traction_roadmap' | 'customer_acquisition_system' | 'customer_feedback_intelligence_system' | 'product_iteration_flywheel' | 'growth_operating_system' | 'weekly_execution_loop' | 'path_to_pmf_roadmap' | 'reality_based_cto_review' | 'current_business_status' | 'next_action_engine' | 'comprehensive_status_report' | 'chrome_extension_architecture' | 'ai_studio_execution_loop' | 'weekly_reality_review' | 'growth_funnel' | 'effective_buzz_os' | 'executive_execution_report' | 'revenue_milestones' | 'saas_maturity_pipeline' | 'repository_audit'>('saas');
   const [agentSuiteTab, setAgentSuiteTab] = useState<'research' | 'scoring' | 'outreach' | 'reply' | 'qualification'>('qualification');
 
   // Global Context State (shared across components to showcase full-stack modularity)
@@ -212,6 +217,7 @@ export default function App() {
               { id: 'company', label: '0e. Dynamic Company Scorecard', icon: Building2, desc: 'Assess firmographics, track notes logs, parse bulk uploads, and test dynamic scoring algorithms.' },
               { id: 'marketing', label: '1. Marketing & Stripe Plan', icon: Sparkles, desc: 'Public value site with sliding rate estimators.' },
               { id: 'saas', label: '2. SaaS Campaign Console', icon: MessageSquare, desc: 'Manage outbound loops & Gemini copilot outreach.' },
+              { id: 'analytics', label: '2.5. SaaS Analytics Dashboard', icon: LineChart, desc: 'Premium reporting and email metrics' },
               { id: 'workflow', label: '3. Workflow Automation Engine', icon: GitPullRequest, desc: 'Design, test, and audit rule-action DAGs.' },
               { id: 'billing', label: '4. Stripe Billing Architecture', icon: CreditCard, desc: 'Setup subscription plans, webhooks, & usage metrics.' },
               { id: 'devops', label: '5. Production DevOps Design', icon: Server, desc: 'Coolify orchestration, Docker networking, pg RLO backups, and dynamic disaster failover.' },
@@ -221,6 +227,10 @@ export default function App() {
               { id: 'admin', label: '9. Tenant & RBAC Admin', icon: Sliders, desc: 'Configure tenant profiles & user security parameters.' },
               { id: 'status', label: '10. SLA & Status Monitors', icon: BarChart, desc: 'Track pings, latency overhead, & incident log history.' },
               { id: 'agent', label: '11. AI Agent Suite Specs', icon: Cpu, desc: 'Specifications & sandbox for Research & Scoring Agents.' },
+              { id: 'ai_persona_builder', label: '11.5 AI Persona Config', icon: Bot, desc: 'Create & manage custom AI Agent Personas for your workspace.' },
+              { id: 'crm_integrations', label: '11.6 CRM Integrations', icon: Database, desc: 'Connect HubSpot, Salesforce, Pipedrive to sync pipelines.' },
+              { id: 'meeting_booking', label: '11.7 Meeting Booking AI', icon: Calendar, desc: 'Configure Cal.com / Google Calendar for automated scheduling.' },
+              { id: 'pipeline_forecasting', label: '11.8 Pipeline AI', icon: TrendingUp, desc: 'AI-driven pipeline and revenue forecasting.' },
               { id: 'founder', label: '12. Founder Financial Cockpit', icon: BarChart, desc: 'Core 10 metrics: MRR, ARR, CAC, LTV, Churn, NRR, Activation, and cash runway.' },
               { id: 'global', label: '13. Global GTM Advisor', icon: Globe, desc: 'Strategic ICPs, region physical pods, pricing parities, & compliance plans.' },
               { id: 'moat', label: '14. 5-Year Strategic Moat', icon: Shield, desc: 'Interactive strategy planner, brand defensibility, and competitive simulator.' },
@@ -363,6 +373,10 @@ export default function App() {
               />
             )}
 
+            {activeTab === 'analytics' && (
+              <Analytics />
+            )}
+
             {activeTab === 'workflow' && (
               <WorkflowAutomationEngine />
             )}
@@ -397,6 +411,22 @@ export default function App() {
 
             {activeTab === 'status' && (
               <StatusMonitor />
+            )}
+
+            {activeTab === 'ai_persona_builder' && (
+              <AIAgentPersonaConfiguration />
+            )}
+
+            {activeTab === 'crm_integrations' && (
+              <CRMIntegrationConsole />
+            )}
+
+            {activeTab === 'meeting_booking' && (
+              <MeetingBookingConsole />
+            )}
+
+            {activeTab === 'pipeline_forecasting' && (
+              <PipelineForecastingDashboard />
             )}
 
             {activeTab === 'founder' && (

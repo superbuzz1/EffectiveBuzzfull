@@ -71,7 +71,7 @@ export default function SaaSSecurityArchitecture() {
   // ============================================================================
   // Encryption Sandbox
   // ============================================================================
-  const [rawSecretText, setRawSecretText] = useState<string>('gemini_api_key_sk_live_9941a88b50ea9c1b');
+  const [rawSecretText, setRawSecretText] = useState<string>('gemini_api_key_redacted');
   const [kmsDataKeyCipher, setKmsDataKeyCipher] = useState<string>('DEK_CIPHERTEXT_AES_256_ENVELOPE_KEY_EBB_8831A');
   const [isEncrypted, setIsEncrypted] = useState<boolean>(true);
   const [encryptedCiphertext, setEncryptedCiphertext] = useState<string>('');

@@ -12,9 +12,12 @@ const limit = rateLimiter({ limit: 120, windowSec: 60 });
 router.post('/webhook', express.raw({type: 'application/json'}), limit, BillingController.handleWebhook);
 
 // Protected endpoints
+router.post('/checkout', authenticateAccessToken, limit, BillingController.createSubscription);
+router.post('/portal', authenticateAccessToken, limit, BillingController.createPortalSession);
 router.post('/subscriptions', authenticateAccessToken, limit, BillingController.createSubscription);
 router.post('/usage', authenticateAccessToken, limit, BillingController.meterUsage);
 router.get('/customers/:customerId/credits', authenticateAccessToken, limit, BillingController.getCredits);
 router.post('/customers/deduct-credits', authenticateAccessToken, limit, BillingController.deductCredits);
+router.get('/status', authenticateAccessToken, limit, BillingController.getStatus);
 
 export default router;

@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { PlanCode } from '../types/billing';
+import { prisma } from '../prismaClient';
 
 export class BillingService {
   private static stripeClient: Stripe | null = null;
@@ -49,6 +50,15 @@ export class BillingService {
       }
     });
 
+    return session;
+  }
+
+  public static async createPortalSession(tenantId: string, customerId: string, returnUrl: string) {
+    const stripe = this.getStripe();
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: returnUrl,
+    });
     return session;
   }
 
@@ -107,8 +117,69 @@ export class BillingService {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         const tenantId = session.metadata?.tenantId;
-        const planCode = session.metadata?.planCode;
-        console.log(`[Billing] Subscription created for tenant: ${tenantId}, plan: ${planCode}`);
+        const planCode = session.metadata?.planCode || 'FREE';
+        
+        if (tenantId && session.subscription) {
+          try {
+            const subscriptionId = typeof session.subscription === 'string' ? session.subscription : session.subscription.id;
+            const sub = await stripe.subscriptions.retrieve(subscriptionId) as any;
+            
+            // Map the stripe status to our enum
+            let dbStatus = 'ACTIVE';
+            switch (sub.status) {
+              case 'trialing': dbStatus = 'TRIALING'; break;
+              case 'active': dbStatus = 'ACTIVE'; break;
+              case 'canceled': dbStatus = 'CANCELED'; break;
+              case 'incomplete': dbStatus = 'INCOMPLETE'; break;
+              case 'incomplete_expired': dbStatus = 'INCOMPLETE_EXPIRED'; break;
+              case 'past_due': dbStatus = 'PAST_DUE'; break;
+              case 'unpaid': dbStatus = 'UNPAID'; break;
+              case 'paused': dbStatus = 'PAST_DUE'; break; // Approximate
+            }
+
+            // Map plan to enum
+            let dbPlan = 'FREE';
+            if (planCode.toUpperCase() === 'STARTER') dbPlan = 'STARTER';
+            if (planCode.toUpperCase() === 'PROFESSIONAL' || planCode.toUpperCase() === 'GROWTH') dbPlan = 'PROFESSIONAL';
+            if (planCode.toUpperCase() === 'ENTERPRISE' || planCode.toUpperCase() === 'SCALE') dbPlan = 'ENTERPRISE';
+
+            const priceId = sub.items.data[0]?.price.id || 'unknown';
+
+            await prisma.subscription.upsert({
+              where: { stripeSubscriptionId: subscriptionId },
+              update: {
+                status: dbStatus as any,
+                currentPeriodStart: new Date(sub.current_period_start * 1000),
+                currentPeriodEnd: new Date(sub.current_period_end * 1000),
+                cancelAtPeriodEnd: sub.cancel_at_period_end,
+                canceledAt: sub.canceled_at ? new Date(sub.canceled_at * 1000) : null,
+                plan: dbPlan as any,
+                stripePriceId: priceId
+              },
+              create: {
+                tenantId: tenantId,
+                stripeSubscriptionId: subscriptionId,
+                stripeCustomerId: typeof session.customer === 'string' ? session.customer : (session.customer as Stripe.Customer)?.id || '',
+                stripePriceId: priceId,
+                plan: dbPlan as any,
+                status: dbStatus as any,
+                currentPeriodStart: new Date(sub.current_period_start * 1000),
+                currentPeriodEnd: new Date(sub.current_period_end * 1000),
+                cancelAtPeriodEnd: sub.cancel_at_period_end,
+              }
+            });
+
+            // Update Tenant Plan
+            await prisma.tenant.update({
+              where: { id: tenantId },
+              data: { plan: dbPlan }
+            });
+
+            console.log(`[Billing] Subscription saved for tenant: ${tenantId}, plan: ${dbPlan}`);
+          } catch (e: any) {
+            console.error(`[Billing] Error saving subscription to Prisma: ${e.message}`);
+          }
+        }
         break;
       }
       case 'invoice.payment_succeeded': {
@@ -118,7 +189,15 @@ export class BillingService {
       }
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
-        console.log(`[Billing] Subscription canceled: ${subscription.id}`);
+        try {
+          await prisma.subscription.update({
+            where: { stripeSubscriptionId: subscription.id },
+            data: { status: 'CANCELED' as any, canceledAt: new Date() }
+          });
+          console.log(`[Billing] Subscription canceled in DB: ${subscription.id}`);
+        } catch(e: any) {
+           console.error(`[Billing] Could not update canceled subscription: ${e.message}`);
+        }
         break;
       }
       default:

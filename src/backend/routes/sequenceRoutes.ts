@@ -17,4 +17,7 @@ router.get('/:id', limit, SequenceController.getSequence);
 router.put('/:id', limit, SequenceController.updateSequence);
 router.delete('/:id', limit, SequenceController.deleteSequence);
 
+router.post('/steps/:id/variants', limit, SequenceController.addVariantToStep);
+router.put('/steps/:id/condition', limit, SequenceController.updateStepCondition);
+
 export default router;

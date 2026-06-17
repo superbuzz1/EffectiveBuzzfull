@@ -21,22 +21,6 @@ enum AuditStatus {
   FAILURE
 }
 
-model Tenant {
-  id        String   @id @default(uuid())
-  name      String
-  domain    String   @unique
-  plan      String   @default("Growth") // Growth, Professional, Enterprise
-  status    String   @default("active") // active, suspended
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  users     User[]
-  workspaces Workspace[]
-  auditLogs AuditLog[]
-
-  @@map("tenants")
-}
-
 enum WorkspaceRole {
   Owner
   Admin
@@ -45,44 +29,152 @@ enum WorkspaceRole {
   Viewer
 }
 
+enum ContactStatus {
+  NEW
+  CONTACTED
+  REPLIED
+  MEETING_BOOKED
+  UNQUALIFIED
+  DO_NOT_CONTACT
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum SequenceStepType {
+  EMAIL
+  LINKEDIN_MESSAGE
+  LINKEDIN_CONNECTION
+  CALL
+  MANUAL_TASK
+  CONDITION
+}
+
+enum EventType {
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  REPLIED
+  BOUNCED
+  UNSUBSCRIBED
+}
+
+enum BillingPlan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  CANCELED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  PAST_DUE
+  UNPAID
+}
+
+// ----------------------------------------------------------------------------
+// Core Multi-Tenant Models
+// ----------------------------------------------------------------------------
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  domain    String   @unique
+  plan      String   @default("Growth")
+  status    String   @default("active")
+  
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime? // Soft delete
+
+  users         User[]
+  workspaces    Workspace[]
+  auditLogs     AuditLog[]
+  subscriptions Subscription[]
+
+  @@map("tenants")
+}
+
 model User {
   id                     String    @id @default(uuid())
+  tenantId               String
   email                  String    @unique
   passwordHash           String
   name                   String
   role                   Role      @default(Member)
   isVerified             Boolean   @default(false)
   avatar                 String?
+  
+  // Stripe/Billing metadata
+  stripeCustomerId       String?   @unique
+  
+  // Audit
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
-  tenantId               String
+  deletedAt              DateTime?
   
   tenant                 Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   refreshTokens          RefreshToken[]
   passwordResets         PasswordResetToken[]
   emailVerifications     EmailVerificationToken[]
   memberships            WorkspaceMembership[]
-  invitations            WorkspaceInvitation[] @relation("InvitedByUser")
+  invitationsSent        WorkspaceInvitation[] @relation("InvitedByUser")
   auditLogs              AuditLog[]
+  aiConversations        AiConversation[]
 
   @@index([tenantId])
+  @@index([deletedAt])
   @@map("users")
 }
 
 model Workspace {
   id        String   @id @default(uuid())
+  tenantId  String
   name      String
   slug      String
-  tenantId  String
+  
+  // Audit
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime?
 
   tenant       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   memberships  WorkspaceMembership[]
   invitations  WorkspaceInvitation[]
+  
+  // CRM Data
+  companies    Company[]
+  contacts     Contact[]
+  leads        Lead[]
+  
+  // Sales Engine
+  campaigns    Campaign[]
+  sequences    Sequence[]
+  
+  // AI Agents
+  aiAgents     AiAgent[]
+
+  // Integrations
+  crmIntegrations CrmIntegration[]
+  meetingCalendars MeetingCalendar[]
+  
+  // Automations
+  workflows    Workflow[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
+  @@index([deletedAt])
   @@map("workspaces")
 }
 
@@ -91,6 +183,7 @@ model WorkspaceMembership {
   workspaceId String
   userId      String
   role        WorkspaceRole @default(Viewer)
+  
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -111,8 +204,9 @@ model WorkspaceInvitation {
   token       String        @unique
   expiresAt   DateTime
   invitedById String
-  createdAt   DateTime      @default(now())
   isAccepted  Boolean       @default(false)
+  
+  createdAt   DateTime      @default(now())
 
   workspace  Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   invitedBy  User      @relation("InvitedByUser", fields: [invitedById], references: [id], onDelete: Cascade)
@@ -122,14 +216,87 @@ model WorkspaceInvitation {
   @@map("workspace_invitations")
 }
 
+model CrmIntegration {
+  id          String   @id @default(uuid())
+  workspaceId String
+  provider    String   // 'hubspot', 'salesforce', 'pipedrive'
+  accessToken String?
+  refreshToken String?
+  instanceUrl String?
+  syncStatus  String   @default("disconnected")
+  lastSyncAt  DateTime?
+  
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  @@unique([workspaceId, provider])
+  @@map("crm_integrations")
+}
+
+model MeetingCalendar {
+  id          String   @id @default(uuid())
+  workspaceId String
+  provider    String   // 'google', 'outlook', 'calcom'
+  accessToken String?
+  refreshToken String?
+  bookingLink String?
+  
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  @@unique([workspaceId, provider])
+  @@map("meeting_calendars")
+}
+
+// ----------------------------------------------------------------------------
+// Automations
+// ----------------------------------------------------------------------------
+
+model Workflow {
+  id          String   @id @default(uuid())
+  workspaceId String
+  name        String
+  description String?
+  trigger     String   // e.g., 'contact_created', 'email_opened', 'deal_won'
+  nodes       Json     // JSON array of nodes/actions
+  edges       Json     // JSON array of edges connecting nodes
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  executions  WorkflowExecution[]
+
+  @@index([workspaceId])
+  @@map("workflows")
+}
+
+model WorkflowExecution {
+  id          String   @id @default(uuid())
+  workflowId  String
+  status      String   // 'pending', 'running', 'completed', 'failed'
+  context     Json     // Initial trigger context payload
+  logs        Json     // Execution step logs
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+
+  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId])
+  @@map("workflow_executions")
+}
+
+// ----------------------------------------------------------------------------
+// Authentication & Security
+// ----------------------------------------------------------------------------
+
 model RefreshToken {
   id        String   @id @default(uuid())
-  token     String   @unique
   userId    String
+  token     String   @unique
   jti       String   @unique
   expiresAt DateTime
-  createdAt DateTime @default(now())
   isRevoked Boolean  @default(false)
+  
+  createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -139,11 +306,12 @@ model RefreshToken {
 
 model PasswordResetToken {
   id        String   @id @default(uuid())
-  token     String   @unique
   userId    String
+  token     String   @unique
   expiresAt DateTime
-  createdAt DateTime @default(now())
   isUsed    Boolean  @default(false)
+  
+  createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -153,11 +321,12 @@ model PasswordResetToken {
 
 model EmailVerificationToken {
   id        String   @id @default(uuid())
-  token     String   @unique
   userId    String
+  token     String   @unique
   expiresAt DateTime
-  createdAt DateTime @default(now())
   isUsed    Boolean  @default(false)
+  
+  createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -167,19 +336,334 @@ model EmailVerificationToken {
 
 model AuditLog {
   id        String      @id @default(uuid())
-  timestamp DateTime    @default(now())
-  action    String
-  userId    String?
   tenantId  String?
-  ipAddress String
-  userAgent String
+  userId    String?
+  
+  action    String
   status    AuditStatus
   reason    String?
+  ipAddress String
+  userAgent String
+  
+  timestamp DateTime    @default(now())
 
-  user      User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
   tenant    Tenant?     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  user      User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
+
+// ----------------------------------------------------------------------------
+// CRM: Companies, Contacts, Leads
+// ----------------------------------------------------------------------------
+
+model Company {
+  id          String   @id @default(uuid())
+  workspaceId String
+  
+  name        String
+  domain      String?
+  industry    String?
+  size        String?
+  location    String?
+  enrichmentData Json?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contacts    Contact[]
+  leads       Lead[]
+
+  @@index([workspaceId])
+  @@index([deletedAt])
+  @@map("companies")
+}
+
+model Contact {
+  id          String   @id @default(uuid())
+  workspaceId String
+  companyId   String?
+  
+  firstName   String?
+  lastName    String?
+  email       String
+  phone       String?
+  title       String?
+  linkedinUrl String?
+  status      ContactStatus @default(NEW)
+  
+  enrichmentData Json?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  workspace       Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  company         Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  leads           Lead[]
+  campaignTargets CampaignTarget[]
+  eventLogs       CampaignEventLog[]
+
+  @@unique([workspaceId, email])
+  @@index([workspaceId])
+  @@index([companyId])
+  @@index([deletedAt])
+  @@map("contacts")
+}
+
+model Lead {
+  id          String   @id @default(uuid())
+  workspaceId String
+  contactId   String
+  companyId   String?
+  
+  score       Int      @default(0)
+  source      String?
+  notes       String?  @db.Text
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  company     Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([contactId])
+  @@index([deletedAt])
+  @@map("leads")
+}
+
+// ----------------------------------------------------------------------------
+// Outbound Engine: Campaigns, Sequences, Events
+// ----------------------------------------------------------------------------
+
+model Sequence {
+  id          String   @id @default(uuid())
+  workspaceId String
+  
+  name        String
+  description String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  steps       SequenceStep[]
+  campaigns   Campaign[]
+
+  @@index([workspaceId])
+  @@index([deletedAt])
+  @@map("sequences")
+}
+
+model SequenceStep {
+  id          String   @id @default(uuid())
+  sequenceId  String
+  
+  type        SequenceStepType
+  order       Int
+  delayDays   Int      @default(1)
+  
+  templateId  String?  // References an AI generated template
+  content     String?  @db.Text
+  subject     String?
+  
+  // Conditional Logic
+  conditionMetric   String?
+  conditionOperator String?
+  conditionValue    String?
+  trueNextStepId    String?
+  falseNextStepId   String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sequence    Sequence              @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  variants    SequenceStepVariant[]
+
+  @@index([sequenceId])
+  @@map("sequence_steps")
+}
+
+model SequenceStepVariant {
+  id          String   @id @default(uuid())
+  stepId      String
+  
+  label       String   // 'A', 'B', 'C'
+  distribution Int     @default(50) // percentage
+  subject     String?
+  content     String?  @db.Text
+  
+  createdAt   DateTime @default(now())
+  
+  step        SequenceStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  
+  @@unique([stepId, label])
+  @@index([stepId])
+  @@map("sequence_step_variants")
+}
+
+model Campaign {
+  id          String   @id @default(uuid())
+  workspaceId String
+  sequenceId  String
+  
+  name        String
+  status      CampaignStatus @default(DRAFT)
+  settings    Json? // e.g. schedule, sender emails
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sequence    Sequence         @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  targets     CampaignTarget[]
+
+  @@index([workspaceId])
+  @@index([sequenceId])
+  @@index([deletedAt])
+  @@map("campaigns")
+}
+
+model CampaignTarget {
+  id          String   @id @default(uuid())
+  campaignId  String
+  contactId   String
+  
+  currentStep Int      @default(0)
+  status      String   @default("active") // active, completed, paused, bounced, unsubscribed
+  nextRunAt   DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  campaign    Campaign           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact     Contact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  events      CampaignEventLog[]
+
+  @@unique([campaignId, contactId])
+  @@index([campaignId])
+  @@index([contactId])
+  @@map("campaign_targets")
+}
+
+model CampaignEventLog {
+  id               String   @id @default(uuid())
+  campaignTargetId String
+  contactId        String
+  
+  eventType        EventType
+  channel          SequenceStepType?
+  messageId        String?  // External message ID
+  metadata         Json?
+  
+  timestamp        DateTime @default(now())
+
+  campaignTarget   CampaignTarget @relation(fields: [campaignTargetId], references: [id], onDelete: Cascade)
+  contact          Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([campaignTargetId])
+  @@index([contactId])
+  @@index([eventType])
+  @@index([timestamp])
+  @@map("campaign_event_logs")
+}
+
+// ----------------------------------------------------------------------------
+// AI Engine: SDR, Usage
+// ----------------------------------------------------------------------------
+
+model AiAgent {
+  id          String   @id @default(uuid())
+  workspaceId String
+  
+  name        String
+  persona     String   @db.Text
+  voice       String?  // e.g. "professional", "casual"
+  model       String   @default("claude-3-5-sonnet")
+  settings    Json?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  usageLogs   AiUsageLog[]
+
+  @@index([workspaceId])
+  @@index([deletedAt])
+  @@map("ai_agents")
+}
+
+model AiUsageLog {
+  id          String   @id @default(uuid())
+  aiAgentId   String
+  
+  promptTokens     Int @default(0)
+  completionTokens Int @default(0)
+  totalTokens      Int @default(0)
+  action           String // e.g. "generate_email", "analyze_reply"
+  
+  timestamp   DateTime @default(now())
+
+  aiAgent     AiAgent  @relation(fields: [aiAgentId], references: [id], onDelete: Cascade)
+
+  @@index([aiAgentId])
+  @@index([timestamp])
+  @@map("ai_usage_logs")
+}
+
+model AiConversation {
+  id          String   @id @default(uuid())
+  userId      String
+  title       String?
+  messages    Json     // Array of chat messages
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([deletedAt])
+  @@map("ai_conversations")
+}
+
+// ----------------------------------------------------------------------------
+// Billing & Subscriptions
+// ----------------------------------------------------------------------------
+
+model Subscription {
+  id                     String             @id @default(uuid())
+  tenantId               String
+  
+  stripeSubscriptionId   String             @unique
+  stripeCustomerId       String
+  stripePriceId          String
+  plan                   BillingPlan        @default(FREE)
+  status                 SubscriptionStatus @default(INCOMPLETE)
+  
+  currentPeriodStart     DateTime
+  currentPeriodEnd       DateTime
+  cancelAtPeriodEnd      Boolean            @default(false)
+  canceledAt             DateTime?
+  
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  tenant                 Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   @@index([tenantId])
-  @@map("audit_logs")
+  @@index([stripeCustomerId])
+  @@map("subscriptions")
 }

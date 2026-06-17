@@ -1,0 +1,288 @@
+openapi: 3.0.3
+info:
+  title: EffectiveBuzz API
+  description: API specifications for the EffectiveBuzz platform, covering Auth, CRM, Outbound, AI SDR, Billing, and Admin functionalities.
+  version: 1.0.0
+servers:
+  - url: https://api.effectivebuzz.online/v1
+    description: Production server
+  - url: http://localhost:3000/v1
+    description: Local development server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+    # AUTHENTICATION
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+
+    # USERS & TENANTS
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        tenantId:
+          type: string
+
+    Tenant:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        domain:
+          type: string
+        plan:
+          type: string
+
+    # CRM
+    Contact:
+      type: object
+      properties:
+        id:
+          type: string
+        workspaceId:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        status:
+          type: string
+
+    Lead:
+      type: object
+      properties:
+        id:
+          type: string
+        contactId:
+          type: string
+        score:
+          type: integer
+
+    # OUTBOUND
+    Campaign:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+
+    # AI SDR
+    AiAgent:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        persona:
+          type: string
+
+    # BILLING
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: string
+        plan:
+          type: string
+        status:
+          type: string
+
+paths:
+  # === AUTH ===
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  # === ORGANIZATIONS ===
+  /organizations:
+    get:
+      tags:
+        - Organizations
+      summary: Get tenants
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of tenants
+
+  # === USERS ===
+  /users/me:
+    get:
+      tags:
+        - Users
+      summary: Get current user profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  # === CONTACTS ===
+  /contacts:
+    get:
+      tags:
+        - Contacts
+      summary: List Contacts
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Array of contacts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Contact'
+    post:
+      tags:
+        - Contacts
+      summary: Create Contact
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Contact'
+      responses:
+        '201':
+          description: Created contact
+
+  # === LEADS ===
+  /leads:
+    get:
+      tags:
+        - Leads
+      summary: List Qualified Leads
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Array of leads
+
+  # === CAMPAIGNS ===
+  /campaigns:
+    get:
+      tags:
+        - Campaigns
+      summary: List Campaigns
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Array of campaigns
+
+  # === AI SDR ===
+  /ai-agents:
+    get:
+      tags:
+        - AI SDR
+      summary: List AI Agents
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Array of agents
+
+  # === ANALYTICS ===
+  /analytics/dashboard:
+    get:
+      tags:
+        - Analytics
+      summary: Get dashboard metrics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Aggregated KPI metrics
+
+  # === BILLING ===
+  /billing/subscription:
+    get:
+      tags:
+        - Billing
+      summary: Get current subscription
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current subscription details
+
+  # === ADMIN ===
+  /admin/audit-logs:
+    get:
+      tags:
+        - Admin
+      summary: Get platform audit logs
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of system-wide logs
