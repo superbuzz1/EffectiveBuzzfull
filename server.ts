@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 import { PasswordHasher, TokenService, TokenRevocationRegistry } from "./src/services/AuthService";
 import authRoutesV2 from "./src/backend/routes/authRoutes";
 import dnsRoutesV2 from "./src/backend/routes/dnsRoutes";
+import draftingRoutesV2 from "./src/backend/routes/draftingRoutes";
 import workspaceRoutesV2 from "./src/backend/routes/workspaceRoutes";
 import userRoutesV2 from "./src/backend/routes/userRoutes";
 import prospectRoutesV2 from "./src/backend/routes/prospectRoutes";
@@ -44,6 +45,7 @@ app.use(metricsMiddleware);
 // Mount multi-tenant V2 Auth Service Router
 app.use("/api/v2/auth", authRoutesV2);
 app.use("/api/v2/dns", dnsRoutesV2);
+app.use("/api/v2/drafting", draftingRoutesV2);
 
 // Mount Workspace Service Router
 app.use("/api/v2/workspaces", workspaceRoutesV2);

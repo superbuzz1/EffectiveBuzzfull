@@ -48,7 +48,8 @@ export async function executeAllServiceTests(logCallback: (msg: string) => void)
 }
 
 // Support direct command-line execution
-const isMain = process.argv[1] && (process.argv[1].endsWith('run-tests.ts') || process.argv[1].endsWith('run-tests.js'));
+const isMain = process.env.EB_RUN_TESTS === 'true' || 
+               (process.argv[1] && (process.argv[1].endsWith('run-tests.ts') || process.argv[1].endsWith('run-tests.js')));
 
 if (isMain) {
   executeAllServiceTests((msg) => console.log(msg))

@@ -368,6 +368,8 @@ class InMemoryStore {
   public static emailVerifications: InMemEmailVerification[] = [];
   public static magicLinkTokens: InMemMagicLinkToken[] = [];
   public static verifiedDomains: InMemVerifiedDomain[] = [];
+  public static campaignTargets: any[] = [];
+  public static personalizedDrafts: any[] = [];
   public static auditLogs: InMemAuditLog[] = [];
 
   public static prospects: InMemProspect[] = [
@@ -1587,6 +1589,85 @@ export class DatabaseClient {
     };
     InMemoryStore.verifiedDomains.push(newDomain);
     return newDomain;
+  }
+
+  // --- AI DRAFTING & PERSONALIZATION ---
+  public static async findCampaignTargetById(id: string): Promise<any | null> {
+    if (this.isUsingPrisma) {
+      return prisma.campaignTarget.findUnique({
+        where: { id },
+        include: {
+          contact: { include: { company: true } },
+          campaign: { include: { sequence: { include: { steps: true } } } }
+        }
+      });
+    }
+    return InMemoryStore.campaignTargets.find(t => t.id === id) || null;
+  }
+
+  public static async listCampaignTargetsPendingDrafts(campaignId: string, limit: number): Promise<any[]> {
+    if (this.isUsingPrisma) {
+      return prisma.campaignTarget.findMany({
+        where: { 
+          campaignId,
+          drafts: { none: {} } // Targets that don't have drafts yet
+        },
+        include: {
+          contact: { include: { company: true } },
+          campaign: { include: { sequence: { include: { steps: true } } } }
+        },
+        take: limit
+      });
+    }
+    return InMemoryStore.campaignTargets.filter(t => t.campaignId === campaignId).slice(0, limit);
+  }
+
+  public static async upsertPersonalizedDraft(campaignTargetId: string, data: any): Promise<any> {
+    if (this.isUsingPrisma) {
+      return prisma.personalizedDraft.upsert({
+        where: { campaignTargetId },
+        create: { ...data, campaignTargetId },
+        update: { ...data }
+      });
+    }
+    // Simple In-Mem for now
+    const draft = { id: `draft-${Math.floor(Math.random() * 1000000)}`, campaignTargetId, ...data, createdAt: new Date(), updatedAt: new Date() };
+    InMemoryStore.personalizedDrafts.push(draft);
+    return draft;
+  }
+
+  public static async listPersonalizedDrafts(tenantId: string, status: string): Promise<any[]> {
+    if (this.isUsingPrisma) {
+      return prisma.personalizedDraft.findMany({
+        where: { 
+          status,
+          campaignTarget: { campaign: { workspace: { tenantId } } }
+        },
+        include: {
+          campaignTarget: {
+            include: {
+              contact: { include: { company: true } }
+            }
+          }
+        }
+      });
+    }
+    return InMemoryStore.personalizedDrafts.filter(d => d.status === status);
+  }
+
+  public static async updatePersonalizedDraftStatus(id: string, status: string, feedback?: string): Promise<any> {
+    if (this.isUsingPrisma) {
+      return prisma.personalizedDraft.update({
+        where: { id },
+        data: { status, feedback }
+      });
+    }
+    const draft = InMemoryStore.personalizedDrafts.find(d => d.id === id);
+    if (!draft) throw new Error("Draft not found");
+    draft.status = status;
+    if (feedback) draft.feedback = feedback;
+    draft.updatedAt = new Date();
+    return draft;
   }
 
   public static getInMemoryStore() {
