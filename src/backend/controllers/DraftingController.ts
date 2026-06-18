@@ -132,7 +132,7 @@ export class DraftingController {
       if (!originalDraft) return res.status(404).json({ error: "Draft not found" });
 
       let editDelta = 0;
-      if (status === 'approved' && body) {
+      if (status === 'approved' && body && originalDraft.body) {
         editDelta = QualityGuardrailService.calculateEditDelta(originalDraft.body, body);
       }
 

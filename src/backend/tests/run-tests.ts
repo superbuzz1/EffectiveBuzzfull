@@ -46,18 +46,3 @@ export async function executeAllServiceTests(logCallback: (msg: string) => void)
     integration: { total: integrationResults.total, failed: integrationResults.failed }
   };
 }
-
-// Support direct command-line execution
-const isMain = process.env.EB_RUN_TESTS === 'true' || 
-               (process.argv[1] && (process.argv[1].endsWith('run-tests.ts') || process.argv[1].endsWith('run-tests.js')));
-
-if (isMain) {
-  executeAllServiceTests((msg) => console.log(msg))
-    .then((result) => {
-      process.exit(result.success ? 0 : 1);
-    })
-    .catch((err) => {
-      console.error("Test execution engine failure:", err);
-      process.exit(1);
-    });
-}
