@@ -100,9 +100,11 @@ model Tenant {
 
   users         User[]
   workspaces    Workspace[]
-  auditLogs     AuditLog[]
-  subscriptions Subscription[]
+  auditLogs       AuditLog[]
+  subscriptions  Subscription[]
   verifiedDomains VerifiedDomain[]
+  inboundLeads    InboundLead[]
+  dailyMetrics    DailyMetrics[]
 
   @@map("tenants")
 }
@@ -600,6 +602,12 @@ model PersonalizedDraft {
   status           String   @default("pending_review") // pending_review, approved, rejected
   feedback         String?  @db.Text
   
+  // Sprint 2: Quality Guardrails
+  spamScore        Int?
+  clicheMatches    String[]
+  editDelta        Int?
+  humanVersion     String?  @db.Text
+  
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -607,6 +615,42 @@ model PersonalizedDraft {
 
   @@index([campaignTargetId])
   @@map("personalized_drafts")
+}
+
+model InboundLead {
+  id           String   @id @default(uuid())
+  tenantId     String
+  
+  email        String
+  name         String?
+  companyName  String?
+  transcript   Json?
+  status       String   @default("new") // new, qualified, converted
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("inbound_leads")
+}
+
+model DailyMetrics {
+  id             String   @id @default(uuid())
+  tenantId       String
+  date           DateTime @default(now())
+  
+  arr            Float    @default(0)
+  outreachVolume Int      @default(0)
+  replyRate      Float    @default(0)
+  avgEditDelta   Float    @default(0)
+  
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, date])
+  @@index([tenantId])
+  @@map("daily_metrics")
 }
 
 model CampaignEventLog {

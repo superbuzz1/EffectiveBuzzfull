@@ -3,7 +3,7 @@
  * Handles both cross-origin navigation (subdomains) and local surface routing.
  */
 
-export type Surface = 'marketing' | 'app' | 'docs' | 'admin' | 'status';
+export type Surface = 'marketing' | 'app' | 'docs' | 'admin' | 'status' | 'analytics';
 
 export function navigateToSurface(surface: Surface, path: string = "/") {
   const isLocal = window.location.hostname === 'localhost' || window.location.hostname.includes('.localhost');

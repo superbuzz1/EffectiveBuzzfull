@@ -8,6 +8,9 @@ import { PasswordHasher, TokenService, TokenRevocationRegistry } from "./src/ser
 import authRoutesV2 from "./src/backend/routes/authRoutes";
 import dnsRoutesV2 from "./src/backend/routes/dnsRoutes";
 import draftingRoutesV2 from "./src/backend/routes/draftingRoutes";
+import analyticsRoutesV2 from "./src/backend/routes/analyticsRoutes";
+import conversationalRoutesV2 from "./src/backend/routes/conversationalRoutes";
+import enrichmentRoutesV2 from "./src/backend/routes/enrichmentRoutes";
 import workspaceRoutesV2 from "./src/backend/routes/workspaceRoutes";
 import userRoutesV2 from "./src/backend/routes/userRoutes";
 import prospectRoutesV2 from "./src/backend/routes/prospectRoutes";
@@ -19,7 +22,6 @@ import leadScoringRoutesV2 from "./src/backend/routes/leadScoringRoutes";
 import aiOutreachRoutesV2 from "./src/backend/routes/aiOutreachRoutes";
 import aiReplyAnalysisRoutesV2 from "./src/backend/routes/aiReplyAnalysisRoutes";
 import aiQualificationRoutesV2 from "./src/backend/routes/aiQualificationRoutes";
-import analyticsRoutesV2 from "./src/backend/routes/analyticsRoutes";
 import billingRoutesV2 from "./src/backend/routes/billingRoutes";
 import adminConsoleRoutesV2 from "./src/backend/routes/adminConsoleRoutes";
 import trackingRoutes from "./src/backend/routes/trackingRoutes";
@@ -46,6 +48,7 @@ app.use(metricsMiddleware);
 app.use("/api/v2/auth", authRoutesV2);
 app.use("/api/v2/dns", dnsRoutesV2);
 app.use("/api/v2/drafting", draftingRoutesV2);
+app.use("/api/v2/analytics", analyticsRoutesV2);
 
 // Mount Workspace Service Router
 app.use("/api/v2/workspaces", workspaceRoutesV2);
@@ -91,8 +94,9 @@ app.use("/api/v2/ai/reply-analysis", aiReplyAnalysisRoutesV2);
 // Mount AI Qualification Service
 app.use("/api/v2/ai/qualification", aiQualificationRoutesV2);
 
-// Mount Analytics Service
-app.use("/api/v2/analytics", analyticsRoutesV2);
+// Mount Conversational & Enrichment Services
+app.use("/api/v2/conversational", conversationalRoutesV2);
+app.use("/api/v2/enrichment", enrichmentRoutesV2);
 
 // Mount Billing Service
 app.use("/api/v2/billing", billingRoutesV2);
@@ -911,6 +915,7 @@ async function startServer() {
         else if (host.startsWith("docs.")) req.url = "/docs.html";
         else if (host.startsWith("admin.")) req.url = "/admin.html";
         else if (host.startsWith("status.")) req.url = "/status.html";
+        else if (host.startsWith("analytics.")) req.url = "/analytics.html";
       }
       next();
     });
@@ -929,6 +934,8 @@ async function startServer() {
         res.sendFile(path.join(distPath, "admin.html"));
       } else if (host.startsWith("status.")) {
         res.sendFile(path.join(distPath, "status.html"));
+      } else if (host.startsWith("analytics.")) {
+        res.sendFile(path.join(distPath, "analytics.html"));
       } else {
         res.sendFile(path.join(distPath, "index.html"));
       }

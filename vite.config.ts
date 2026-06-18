@@ -19,6 +19,7 @@ export default defineConfig(() => {
           docs: path.resolve(__dirname, 'docs.html'),
           admin: path.resolve(__dirname, 'admin.html'),
           status: path.resolve(__dirname, 'status.html'),
+          analytics: path.resolve(__dirname, 'analytics.html'),
         },
       },
     },

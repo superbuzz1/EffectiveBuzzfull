@@ -46,10 +46,12 @@ export class DraftingService {
 
     const userPrompt = `
       Recipient: ${contact.firstName} ${contact.lastName}, ${contact.title} at ${company.name}.
-      Company Description: ${company.enrichmentData?.description || 'A B2B company.'}
+      Company Context: ${JSON.stringify(company.enrichmentData || {})}
       Campaign Goal: ${campaign.name}
       Sequence Step: ${step.subject ? `Context: ${step.subject}` : 'Initial outreach'}
       Additional Context: ${userContext || 'None'}
+      
+      Instructions: Use the Company Context (meta-tags, hero text) to mention a specific value driver relevant to their current market positioning.
       
       Generate a "subject" line and the "body" of the email.
     `;

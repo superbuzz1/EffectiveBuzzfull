@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { BrandMark } from './BrandMark';
 import { navigateToSurface, getActiveSurface, Surface } from './router';
-import { Menu, X, ChevronRight } from 'lucide-react';
+import { Menu, X, ChevronRight, BarChart3 } from 'lucide-react';
+import InboundWidget from './Widget';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,9 +12,10 @@ export const Layout = ({ children }: LayoutProps) => {
   const currentSurface = getActiveSurface();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const navigation: { id: Surface; label: string }[] = [
+  const navigation: { id: Surface | 'analytics'; label: string }[] = [
     { id: 'marketing', label: 'Home' },
     { id: 'app', label: 'App' },
+    { id: 'analytics', label: 'Analytics' },
     { id: 'docs', label: 'Docs' },
     { id: 'admin', label: 'Admin' },
     { id: 'status', label: 'Status' },
@@ -40,7 +42,7 @@ export const Layout = ({ children }: LayoutProps) => {
               {navigation.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => navigateToSurface(item.id)}
+                  onClick={() => navigateToSurface(item.id as any)}
                   className={`text-sm font-medium transition-colors ${
                     currentSurface === item.id 
                       ? 'text-emerald-400' 
@@ -54,6 +56,14 @@ export const Layout = ({ children }: LayoutProps) => {
           </div>
 
           <div className="flex items-center gap-4">
+            <button 
+              onClick={() => navigateToSurface('analytics')}
+              className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-gray-800 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition-all"
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              Exec Console
+            </button>
+
             <button 
               onClick={() => navigateToSurface('app')}
               className="hidden sm:flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-lg text-xs font-bold transition-all shadow-lg shadow-emerald-500/10"
@@ -78,7 +88,7 @@ export const Layout = ({ children }: LayoutProps) => {
               <button
                 key={item.id}
                 onClick={() => {
-                  navigateToSurface(item.id);
+                  navigateToSurface(item.id as any);
                   setIsMenuOpen(false);
                 }}
                 className={`block w-full text-left px-4 py-2 rounded-lg text-sm font-medium ${
@@ -115,6 +125,7 @@ export const Layout = ({ children }: LayoutProps) => {
               <h4 className="font-bold text-white text-sm mb-4">Platform</h4>
               <ul className="space-y-2 text-sm text-gray-400">
                 <li><button onClick={() => navigateToSurface('app')} className="hover:text-emerald-400">Dashboard</button></li>
+                <li><button onClick={() => navigateToSurface('analytics')} className="hover:text-emerald-400">Analytics</button></li>
                 <li><button onClick={() => navigateToSurface('status')} className="hover:text-emerald-400">System Status</button></li>
               </ul>
             </div>
@@ -131,6 +142,9 @@ export const Layout = ({ children }: LayoutProps) => {
           </div>
         </div>
       </footer>
+      
+      {/* Sprint 2: Inbound Growth Loop Widget */}
+      <InboundWidget />
     </div>
   );
 };

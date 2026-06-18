@@ -1,6 +1,7 @@
 // src/backend/controllers/DraftingController.ts
 import { Request, Response } from 'express';
 import { DraftingService } from '../services/DraftingService';
+import { QualityGuardrailService } from '../services/QualityGuardrailService';
 import { DatabaseClient } from '../services/PrismaService';
 import { AuthenticatedUserRequest } from '../middleware/authMiddleware';
 
@@ -18,7 +19,6 @@ export class DraftingController {
 
     try {
       // 1. Fetch full target context
-      // Note: I'll need to add findCampaignTargetById to DatabaseClient
       const target = await (DatabaseClient as any).findCampaignTargetById(targetId);
       if (!target) return res.status(404).json({ error: "Target not found" });
 
@@ -31,10 +31,15 @@ export class DraftingController {
         userContext
       });
 
-      // 3. Upsert into database
+      // 3. Run Quality Checks
+      const quality = QualityGuardrailService.analyzeDraft(draft.subject, draft.body);
+
+      // 4. Upsert into database
       const dbDraft = await (DatabaseClient as any).upsertPersonalizedDraft(targetId, {
         subject: draft.subject,
         body: draft.body,
+        spamScore: quality.spamScore,
+        clicheMatches: quality.clicheMatches,
         status: 'pending_review'
       });
 
@@ -63,18 +68,21 @@ export class DraftingController {
 
       // 2. Fetch Campaign & Step context
       const campaign = targets[0].campaign;
-      const step = campaign.sequence.steps[0] || {}; // Default to first step for now
+      const step = campaign.sequence.steps[0] || {}; 
 
-      // 3. Generate in parallel (within reason)
+      // 3. Generate in parallel
       const results = await DraftingService.generateBulkDrafts(targets, campaign, step);
 
-      // 4. Save all successful drafts
+      // 4. Save with quality reports
       const savedDrafts = [];
       for (const res of results) {
         if (!res.error) {
+          const quality = QualityGuardrailService.analyzeDraft(res.subject, res.body);
           const dbDraft = await (DatabaseClient as any).upsertPersonalizedDraft(res.targetId, {
             subject: res.subject,
             body: res.body,
+            spamScore: quality.spamScore,
+            clicheMatches: quality.clicheMatches,
             status: 'pending_review'
           });
           savedDrafts.push(dbDraft);
@@ -91,35 +99,52 @@ export class DraftingController {
       return res.status(500).json({ error: err.message });
     }
   }
-/**
- * GET /api/v2/drafting/list
- * Lists drafts for review.
- */
-public static async listDrafts(req: Request, res: Response) {
-  const authedReq = req as AuthenticatedUserRequest;
-  if (!authedReq.user) return res.status(401).json({ error: "Unauthorized" });
 
-  const { status = 'pending_review' } = req.query;
+  /**
+   * GET /api/v2/drafting/list
+   * Lists drafts for review.
+   */
+  public static async listDrafts(req: Request, res: Response) {
+    const authedReq = req as AuthenticatedUserRequest;
+    if (!authedReq.user) return res.status(401).json({ error: "Unauthorized" });
 
-  try {
-    const drafts = await (DatabaseClient as any).listPersonalizedDrafts(authedReq.user.tenantId, status as string);
-    return res.json({ success: true, drafts });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    const { status = 'pending_review' } = req.query;
+
+    try {
+      const drafts = await (DatabaseClient as any).listPersonalizedDrafts(authedReq.user.tenantId, status as string);
+      return res.json({ success: true, drafts });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
   }
-}
 
-/**
- * POST /api/v2/drafting/review
-...
+  /**
+   * POST /api/v2/drafting/review
    * Updates the status of a draft (approved/rejected).
    */
   public static async reviewDraft(req: Request, res: Response) {
-    const { draftId, status, feedback } = req.body;
+    const { draftId, status, feedback, subject, body } = req.body;
     if (!draftId || !status) return res.status(400).json({ error: "Missing draftId or status" });
 
     try {
-      const updated = await (DatabaseClient as any).updatePersonalizedDraftStatus(draftId, status, feedback);
+      // 1. Fetch original draft to calculate edit delta if approved
+      const originalDraft = await (DatabaseClient as any).findPersonalizedDraftById(draftId);
+      if (!originalDraft) return res.status(404).json({ error: "Draft not found" });
+
+      let editDelta = 0;
+      if (status === 'approved' && body) {
+        editDelta = QualityGuardrailService.calculateEditDelta(originalDraft.body, body);
+      }
+
+      const updated = await (DatabaseClient as any).updatePersonalizedDraftStatus(draftId, {
+        status,
+        feedback,
+        subject,
+        body,
+        editDelta,
+        humanVersion: body // Track what the human actually sent
+      });
+
       return res.json({ success: true, draft: updated });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });

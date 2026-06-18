@@ -11,6 +11,8 @@ interface Draft {
   body: string;
   status: 'pending_review' | 'approved' | 'rejected';
   feedback?: string;
+  spamScore?: number;
+  clicheMatches?: string[];
   campaignTarget: {
     contact: {
       firstName: string;
@@ -191,11 +193,48 @@ export default function DraftReview() {
             <Sparkles className="w-4 h-4" />
             <h3 className="text-xs font-bold uppercase tracking-widest">AI SDR Stats</h3>
           </div>
-          <p className="text-[11px] text-indigo-300/70 leading-relaxed">
-            Personalization score: <span className="text-white font-bold">94/100</span><br />
-            Estimated response rate: <span className="text-white font-bold">18-22%</span>
-          </p>
+          <div className="space-y-3 pt-1">
+            <div>
+              <div className="flex items-center justify-between text-[10px] mb-1">
+                <span className="text-gray-500 uppercase">Personalization</span>
+                <span className="text-white font-bold">94%</span>
+              </div>
+              <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-500 w-[94%]"></div>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between text-[10px] mb-1">
+                <span className="text-gray-500 uppercase">Spam Risk</span>
+                <span className={`${(current.spamScore || 0) > 30 ? 'text-rose-400' : 'text-emerald-400'} font-bold`}>
+                  {current.spamScore || 0}%
+                </span>
+              </div>
+              <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                <div className={`h-full ${ (current.spamScore || 0) > 30 ? 'bg-rose-500' : 'bg-emerald-500'} transition-all`} style={{ width: `${current.spamScore || 0}%` }}></div>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {current.clicheMatches && current.clicheMatches.length > 0 && (
+          <div className="bg-rose-500/5 border border-rose-500/10 rounded-2xl p-6 space-y-3 animate-in shake duration-500">
+            <div className="flex items-center gap-2 text-rose-400">
+              <AlertCircle className="w-4 h-4" />
+              <h3 className="text-xs font-bold uppercase tracking-widest">Cliché Warning</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {current.clicheMatches.map((m, idx) => (
+                <span key={idx} className="px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-[9px] font-bold text-rose-300 uppercase">
+                  {m}
+                </span>
+              ))}
+            </div>
+            <p className="text-[10px] text-rose-400/70 leading-relaxed italic">
+              Overused sales phrases detected. High risk of being ignored or filtered as spam.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Main: Editor/Reviewer */}

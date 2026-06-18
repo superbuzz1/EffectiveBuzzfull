@@ -188,6 +188,7 @@ interface InMemCompany {
   score: number;
   scoringBreakdown: InMemCompanyScoringBreakdown;
   notes: InMemCompanyNote[];
+  enrichmentData?: any;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -368,6 +369,8 @@ class InMemoryStore {
   public static emailVerifications: InMemEmailVerification[] = [];
   public static magicLinkTokens: InMemMagicLinkToken[] = [];
   public static verifiedDomains: InMemVerifiedDomain[] = [];
+  public static subscriptions: any[] = [];
+  public static inboundLeads: any[] = [];
   public static campaignTargets: any[] = [];
   public static personalizedDrafts: any[] = [];
   public static auditLogs: InMemAuditLog[] = [];
@@ -1655,19 +1658,91 @@ export class DatabaseClient {
     return InMemoryStore.personalizedDrafts.filter(d => d.status === status);
   }
 
-  public static async updatePersonalizedDraftStatus(id: string, status: string, feedback?: string): Promise<any> {
+  public static async findPersonalizedDraftById(id: string): Promise<any | null> {
+    if (this.isUsingPrisma) {
+      return prisma.personalizedDraft.findUnique({ where: { id } });
+    }
+    return InMemoryStore.personalizedDrafts.find(d => d.id === id) || null;
+  }
+
+  public static async updatePersonalizedDraftStatus(id: string, data: any): Promise<any> {
     if (this.isUsingPrisma) {
       return prisma.personalizedDraft.update({
         where: { id },
-        data: { status, feedback }
+        data
       });
     }
-    const draft = InMemoryStore.personalizedDrafts.find(d => d.id === id);
-    if (!draft) throw new Error("Draft not found");
-    draft.status = status;
-    if (feedback) draft.feedback = feedback;
-    draft.updatedAt = new Date();
-    return draft;
+    const draftIndex = InMemoryStore.personalizedDrafts.findIndex(d => d.id === id);
+    if (draftIndex === -1) throw new Error("Draft not found");
+    const updated = { ...InMemoryStore.personalizedDrafts[draftIndex], ...data, updatedAt: new Date() };
+    InMemoryStore.personalizedDrafts[draftIndex] = updated;
+    return updated;
+  }
+
+  // --- COMPANY ENRICHMENT ---
+  public static async findCompanyContext(id: string): Promise<any | null> {
+    if (this.isUsingPrisma) {
+      return prisma.company.findUnique({ where: { id } });
+    }
+    return InMemoryStore.companies.find(c => c.id === id) || null;
+  }
+
+  public static async updateCompanyEnrichment(id: string, enrichmentData: any): Promise<any> {
+    if (this.isUsingPrisma) {
+      return prisma.company.update({
+        where: { id },
+        data: { enrichmentData }
+      });
+    }
+    const company = InMemoryStore.companies.find(c => c.id === id);
+    if (company) {
+      company.enrichmentData = enrichmentData;
+    }
+    return company;
+  }
+
+  // --- ANALYTICS & METRICS ---
+  public static async listSubscriptions(tenantId: string): Promise<any[]> {
+    if (this.isUsingPrisma) {
+      return prisma.subscription.findMany({ where: { tenantId } });
+    }
+    return InMemoryStore.subscriptions.filter(s => s.tenantId === tenantId);
+  }
+
+  public static async getDailyMetrics(tenantId: string, days: number): Promise<any[]> {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    if (this.isUsingPrisma) {
+      return prisma.dailyMetrics.findMany({
+        where: { tenantId, date: { gte: startDate } },
+        orderBy: { date: 'asc' }
+      });
+    }
+    // Return dummy trends for sandbox
+    return Array.from({ length: days }).map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (days - i));
+      return {
+        date: d.toISOString().split('T')[0],
+        arr: 1000 + Math.random() * 500,
+        outreachVolume: Math.floor(Math.random() * 50),
+        replyRate: Math.random() * 15,
+        avgEditDelta: 5 + Math.random() * 10
+      };
+    });
+  }
+
+  // --- INBOUND LEADS & CONVERSATIONAL ---
+  public static async createInboundLead(tenantId: string, data: any): Promise<any> {
+    if (this.isUsingPrisma) {
+      return prisma.inboundLead.create({
+        data: { ...data, tenantId }
+      });
+    }
+    const lead = { id: `inb-${Math.floor(Math.random() * 1000000)}`, tenantId, ...data, createdAt: new Date(), updatedAt: new Date() };
+    InMemoryStore.inboundLeads.push(lead);
+    return lead;
   }
 
   public static getInMemoryStore() {
